@@ -68,9 +68,11 @@
   }
   .portal.P::after{background:var(--P-glow)}
   .portal.C::after{background:var(--C-glow)}
+  .portal.F::after{background:rgba(240,184,110,0.12)}
   .portal:hover{transform:translateY(-4px)}
   .portal.P:hover{border-color:var(--P-border)}
   .portal.C:hover{border-color:var(--C-border)}
+  .portal.F:hover{border-color:rgba(240,184,110,0.35)}
   .portal:hover::after{opacity:1}
 
   .portal-num{
@@ -84,9 +86,11 @@
   }
   .P .portal-icon{background:var(--P-glow)}
   .C .portal-icon{background:var(--C-glow)}
+  .F .portal-icon{background:rgba(240,184,110,0.12)}
   .portal-icon svg{width:22px;height:22px}
   .P .portal-icon svg{stroke:var(--P)}
   .C .portal-icon svg{stroke:var(--C)}
+  .F .portal-icon svg{stroke:#F0B86E}
 
   .portal-tag{
     font-size:10px;font-weight:500;letter-spacing:.13em;
@@ -94,6 +98,7 @@
   }
   .P .portal-tag{color:var(--P)}
   .C .portal-tag{color:var(--C)}
+  .F .portal-tag{color:#F0B86E}
 
   .portal h3{
     font-family:'Syne',sans-serif;font-size:22px;font-weight:700;
@@ -111,6 +116,8 @@
   .P .portal-cta:hover{background:var(--P);color:#08080E}
   .C .portal-cta{border-color:var(--C);color:var(--C)}
   .C .portal-cta:hover{background:var(--C);color:#08080E}
+  .F .portal-cta{border-color:#F0B86E;color:#F0B86E}
+  .F .portal-cta:hover{background:#F0B86E;color:#08080E}
   .portal-cta svg{width:13px;height:13px;stroke:currentColor}
 
   /* Status pill */
@@ -172,6 +179,23 @@
       <p>Predict delivery delays, score order risk, and get optimal shipping recommendations — giving customers visibility before issues occur.</p>
       <div class="portal-cta">
         Open Consumer Dashboard
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </div>
+    </div>
+
+    <!-- Fleet Optimizer Portal -->
+    <div class="portal F" onclick="window.location='/fleet'">
+      <span class="portal-num">03</span>
+      <div class="portal-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 17h18M5 17V7m14 10V10M9 17V13m6 4v-5"/>
+        </svg>
+      </div>
+      <p class="portal-tag">Fleet</p>
+      <h3>Fleet Optimizer</h3>
+      <p>Optimize delivery routes across your fleet using distance, fuel, CO₂, and delay-risk weights for practical multi-objective planning.</p>
+      <div class="portal-cta">
+        Open Fleet Optimizer
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
       </div>
     </div>

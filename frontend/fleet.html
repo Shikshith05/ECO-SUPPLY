@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>epoch — Fleet Optimizer</title>
+    <link rel="stylesheet" href="styles.css" />
+    <style>
+      .eyebrow { color: #F0B86E; }
+      .run-btn { background: #F0B86E; color: #08080E; }
+      .query-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 28px 30px; margin-bottom: 24px; }
+      .input-row { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 12px; align-items: end; }
+      @media (max-width: 900px) { .input-row { grid-template-columns: 1fr; } }
+      .field label { font-size: 11px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+      input, select { width: 100%; height: 42px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0 12px; color: var(--text); font-family: var(--font); font-size: 13px; }
+      textarea { width: 100%; min-height: 90px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; color: var(--text); font-family: var(--font); font-size: 13px; }
+      .weights-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+      .weight-card { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; }
+      .result-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px; margin-top: 16px; }
+      .pill { display: inline-block; padding: 4px 8px; border-radius: 999px; background: rgba(240,184,110,.12); color: #F0B86E; font-size: 11px; text-transform: uppercase; letter-spacing: .12em; }
+    </style>
+  </head>
+  <body>
+    <div class="layout">
+      <aside class="sidebar">
+        <a href="/" class="sb-logo" style="text-decoration:none; color:inherit;">
+          <div class="mark" style="background:linear-gradient(135deg,#F0B86E,#E89A3C)"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></div>
+          <div class="name">epoch<span>.ai</span></div>
+        </a>
+        <div class="sb-section"><div class="sb-label">Portals</div><a class="nav-item" href="/producer"><svg viewBox="0 0 24 24" fill="none"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Producer</a><a class="nav-item" href="/consumer"><svg viewBox="0 0 24 24" fill="none"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Consumer</a><a class="nav-item active" href="/fleet"><svg viewBox="0 0 24 24" fill="none"><path d="M3 17h18M5 17V7m14 10V10M9 17V13m6 4v-5"/></svg>Fleet Optimizer</a></div>
+      </aside>
+
+      <main class="main">
+        <a class="back-btn" href="/"><svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6"/></svg>Back</a>
+        <header class="page-header">
+          <p class="eyebrow">Fleet Optimizer</p>
+          <h1>Route planning, fuel cost, and CO₂-aware delivery optimization</h1>
+          <p>Blend greedy real-time estimates with a GA-based optimizer for the final route plan.</p>
+        </header>
+
+        <section class="query-card">
+          <h3>Input stops</h3>
+          <p>Enter one stop per line as address or lat,lng. The optimizer will distribute them across your vehicle fleet.</p>
+          <div class="input-row">
+            <div class="field"><label>Stops</label><textarea id="stopsInput" placeholder="12.9716,77.5946&#10;13.0055,77.5721">12.9716,77.5946
+13.0055,77.5721
+12.9784,77.6408</textarea></div>
+            <div class="field"><label>Vehicles</label><input id="vehicleCount" type="number" min="1" value="2" /></div>
+            <div class="field"><label>Mode</label><select id="modeSelect"><option value="ga">Full GA Optimization</option><option value="greedy">Quick Estimate</option></select></div>
+            <button class="run-btn" id="runBtn">Run Optimizer</button>
+          </div>
+          <div class="field" style="margin-top:14px;"><label>Cost weights</label></div>
+          <div class="weights-grid">
+            <div class="weight-card">α Distance <input id="alpha" type="range" min="0" max="1" step="0.05" value="0.35" /><span id="alphaOut">0.35</span></div>
+            <div class="weight-card">β Fuel <input id="beta" type="range" min="0" max="1" step="0.05" value="0.25" /><span id="betaOut">0.25</span></div>
+            <div class="weight-card">γ CO₂ <input id="gamma" type="range" min="0" max="1" step="0.05" value="0.20" /><span id="gammaOut">0.20</span></div>
+            <div class="weight-card">δ Delay <input id="delta" type="range" min="0" max="1" step="0.05" value="0.20" /><span id="deltaOut">0.20</span></div>
+          </div>
+          <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
+            <button class="run-btn" id="estimateBtn" style="background:#7AE0B8">Quick Estimate</button>
+            <span class="pill">Cost = α·distance + β·fuel + γ·CO₂ + δ·delay_risk</span>
+          </div>
+        </section>
+
+        <section id="results" style="display:none;">
+          <div class="result-card"><h3>Route summary</h3><div id="summary"></div></div>
+          <div class="result-card"><h3>Routes</h3><ol id="routesList"></ol></div>
+        </section>
+      </main>
+    </div>
+
+    <script>
+      const weights = ['alpha','beta','gamma','delta'];
+      weights.forEach(k => {
+        const input = document.getElementById(k);
+        const out = document.getElementById(k + 'Out');
+        const update = () => out.textContent = Number(input.value).toFixed(2);
+        input.addEventListener('input', update);
+        update();
+      });
+
+      function parseStops(text) {
+        return text.split(/\n+/).map(line => line.trim()).filter(Boolean).map(line => {
+          const [lat, lng] = line.split(',').map(Number);
+          return { lat, lng, order_id: line };
+        }).filter(x => Number.isFinite(x.lat) && Number.isFinite(x.lng));
+      }
+
+      function renderResult(result) {
+        document.getElementById('results').style.display = 'block';
+        const summary = result.summary || {};
+        document.getElementById('summary').innerHTML = `
+          <p><strong>Total distance:</strong> ${summary.distance_km ?? 0} km</p>
+          <p><strong>Fuel cost:</strong> ${summary.fuel_cost ?? 0}</p>
+          <p><strong>CO₂ saved vs baseline:</strong> ${summary.baseline_co2_saved ?? 0} kg</p>
+          <p><strong>Average delay risk:</strong> ${summary.delay_risk ?? 0}</p>`;
+        const list = document.getElementById('routesList');
+        list.innerHTML = '';
+        (result.routes || []).forEach((route, idx) => {
+          const li = document.createElement('li');
+          li.innerHTML = `<strong>Vehicle ${route.vehicle || idx + 1}</strong><br/>${(route.stops || []).map(stop => stop.order_id || `${stop.lat},${stop.lng}`).join(' → ')}`;
+          list.appendChild(li);
+        });
+      }
+
+      async function callEndpoint(path, body) {
+        const res = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const data = await res.json();
+        if (data && data.status === 'ok') {
+          renderResult(data.data);
+        } else {
+          alert(data.message || 'Request failed');
+        }
+      }
+
+      document.getElementById('runBtn').addEventListener('click', () => {
+        const stops = parseStops(document.getElementById('stopsInput').value);
+        callEndpoint('/api/route/optimize', { stops, vehicle_count: Number(document.getElementById('vehicleCount').value || 1), weights: { alpha: Number(document.getElementById('alpha').value), beta: Number(document.getElementById('beta').value), gamma: Number(document.getElementById('gamma').value), delta: Number(document.getElementById('delta').value) } });
+      });
+
+      document.getElementById('estimateBtn').addEventListener('click', () => {
+        const stops = parseStops(document.getElementById('stopsInput').value);
+        callEndpoint('/api/route/estimate', { stops, vehicle_count: Number(document.getElementById('vehicleCount').value || 1), weights: { alpha: Number(document.getElementById('alpha').value), beta: Number(document.getElementById('beta').value), gamma: Number(document.getElementById('gamma').value), delta: Number(document.getElementById('delta').value) } });
+      });
+    </script>
+  </body>
+</html>

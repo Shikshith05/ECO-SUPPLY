@@ -29,13 +29,14 @@ instance/
 *.ipynb_checkpoints
 
 # Data files (large — don't commit raw CSVs)
-data/raw/*.csv
+data/raw/
 data/processed/*.csv
 data/external/*.csv
 uploads/
 
 # Trained models (large binary files — use Git LFS or cloud storage)
 saved_models/*.pkl
+saved_models/*.joblib
 saved_models/*.joblib
 saved_models/*.h5
 saved_models/*.pt

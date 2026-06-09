@@ -12,6 +12,7 @@ from flask_cors import CORS
 
 from routes.prediction_routes import prediction_bp
 from routes.recommendation_routes import recommendation_bp
+from routes.routing_routes import routing_bp
 
 # ── Load config ───────────────────────────────────────────────────────────────
 BASE_DIR   = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -35,6 +36,7 @@ os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 # ── Register blueprints ───────────────────────────────────────────────────────
 app.register_blueprint(prediction_bp,      url_prefix="/api/predict")
 app.register_blueprint(recommendation_bp,  url_prefix="/api/recommend")
+app.register_blueprint(routing_bp,         url_prefix="/api/route")
 
 # ── Serve frontend ────────────────────────────────────────────────────────────
 @app.route("/")
@@ -48,6 +50,10 @@ def producer():
 @app.route("/consumer")
 def consumer():
     return send_from_directory(FRONTEND_DIR, "consumer.html")
+
+@app.route("/fleet")
+def fleet():
+    return send_from_directory(FRONTEND_DIR, "fleet.html")
 
 @app.route("/<path:filename>")
 def static_files(filename):

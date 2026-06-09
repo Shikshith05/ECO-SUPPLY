@@ -2,6 +2,13 @@
 
 ML-powered supply chain analytics with demand zone insights for producers and delivery intelligence for consumers.
 
+## Quick Start
+
+1. `python setup_env.py`   — creates venv and installs all dependencies
+2. `python start_app.py`   — starts the server and opens the browser
+
+No other setup should be needed for a fresh clone.
+
 ## AI Handoff Context
 
 For complete architecture, data flow, endpoint contracts, and model integration notes, see:
@@ -110,6 +117,15 @@ There are no file uploads on either portal. Both dashboards use searchable dropd
 
 **Inputs:** Product + Pincode
 **Output:** Delay risk prediction, confidence score, estimated delivery days, average delay gap, and recommended shipping mode with reasoning.
+
+### Fleet Optimizer Portal
+
+**Inputs:** Delivery stops (lat/lng or address), number of vehicles, and weights for distance, fuel, CO₂, and delay risk.
+**Outputs:** Optimized routes per vehicle, total distance, fuel cost, CO₂ impact, and average delay risk.
+
+**Cost function:**
+
+Cost = α × distance + β × fuel + γ × CO₂ + δ × delay_risk
 
 ---
 
