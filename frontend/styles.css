@@ -70,7 +70,7 @@ code,pre{font-family:var(--font-mono)}
   position:sticky;top:0;height:100vh;overflow-y:auto;
 }
 
-.main{flex:1;padding:48px 48px 64px;overflow-y:auto;max-width:1200px}
+.main{flex:1;display:flex;flex-direction:column;padding:48px 48px 64px;overflow-y:auto;max-width:1200px}
 
 /* ── Sidebar internals ── */
 .sb-logo{
@@ -104,14 +104,23 @@ code,pre{font-family:var(--font-mono)}
 
 /* ── Back button ── */
 .back-btn{
-  position:fixed;top:20px;left:20px;z-index:200;
-  display:flex;align-items:center;gap:6px;
+  position:sticky;top:18px;left:0;z-index:40;
+  display:inline-flex;align-items:center;gap:8px;
+  align-self:flex-start;
+  margin:2px 0 18px;
   font-size:12px;font-weight:500;color:var(--muted);
-  background:var(--surface);border:1px solid var(--border);
-  border-radius:100px;padding:6px 14px;cursor:pointer;
-  text-decoration:none;transition:color .15s,border-color .15s;
+  background:rgba(17,17,25,0.88);border:1px solid var(--border);
+  border-radius:999px;padding:8px 12px;cursor:pointer;
+  text-decoration:none;box-shadow:0 10px 24px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.03);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  transition:transform .18s ease,color .18s ease,border-color .18s ease,background .18s ease,box-shadow .18s ease;
 }
-.back-btn:hover{color:var(--text);border-color:var(--border-md)}
+.back-btn:hover{
+  color:var(--text);border-color:var(--border-md);
+  background:var(--surface2);box-shadow:0 14px 30px rgba(0,0,0,0.34), inset 0 1px 0 rgba(255,255,255,0.04);
+  transform:translateY(-1px);
+}
+.back-btn:focus-visible{outline:none;border-color:var(--P-border);box-shadow:0 0 0 3px rgba(126,184,232,0.12)}
 .back-btn svg{width:13px;height:13px;stroke:currentColor}
 
 /* ── Page header ── */
@@ -250,5 +259,6 @@ tbody td{padding:11px 16px;color:var(--text);white-space:nowrap}
 @media(max-width:768px){
   .sidebar{display:none}
   .main{padding:80px 20px 48px}
+  .back-btn{position:fixed;top:14px;left:14px;margin:0;z-index:60}
   .stats-row{grid-template-columns:1fr 1fr}
 }
