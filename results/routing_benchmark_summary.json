@@ -1,0 +1,687 @@
+{
+  "generated_at": "2026-10-18T13:40:18+00:00",
+  "quick_run": false,
+  "ga_params": {
+    "population_size": 20,
+    "mutation_rate": 0.1,
+    "relocate": true
+  },
+  "ga_params_effective": {
+    "population_size": 20,
+    "tournament_size": 2,
+    "crossover_rate": 0.9,
+    "mutation_rate": 0.1,
+    "local_search_rate": 1.0,
+    "elite_count": 2,
+    "max_generations": 10000,
+    "stall_generations": 100,
+    "seed_with_greedy": true,
+    "relocate": true,
+    "exact_max_stops": 8
+  },
+  "random_distance_mode": "road_network",
+  "time_limits_s": {
+    "10": 2.0,
+    "20": 4.0,
+    "50": 10.0,
+    "100": 20.0
+  },
+  "total_runtime_s": 7304.8,
+  "bangalore_random": {
+    "10": {
+      "instances": 30,
+      "order_as_received": {
+        "mean_km": 199.549,
+        "std_km": 28.909,
+        "mean_gap_vs_ortools_pct": 55.518,
+        "std_gap_vs_ortools_pct": 24.59,
+        "mean_saving_vs_greedy_pct": -36.175,
+        "mean_saving_vs_order_pct": 0.0,
+        "worse_than_greedy": 30,
+        "fleet_infeasible": 15,
+        "mean_runtime_s": 0.0
+      },
+      "greedy": {
+        "mean_km": 151.731,
+        "std_km": 35.996,
+        "mean_gap_vs_ortools_pct": 14.949,
+        "std_gap_vs_ortools_pct": 9.845,
+        "mean_saving_vs_greedy_pct": 0.0,
+        "mean_saving_vs_order_pct": 24.322,
+        "worse_than_greedy": 0,
+        "fleet_infeasible": 4,
+        "mean_runtime_s": 0.0
+      },
+      "ga": {
+        "mean_km": 131.564,
+        "std_km": 28.149,
+        "mean_gap_vs_ortools_pct": 0.0,
+        "std_gap_vs_ortools_pct": 0.0,
+        "mean_saving_vs_greedy_pct": 12.408,
+        "mean_saving_vs_order_pct": 34.077,
+        "worse_than_greedy": 0,
+        "fleet_infeasible": 0,
+        "mean_runtime_s": 1.652
+      },
+      "ga_unseeded": {
+        "mean_km": 131.564,
+        "std_km": 28.149,
+        "mean_gap_vs_ortools_pct": 0.0,
+        "std_gap_vs_ortools_pct": 0.0,
+        "mean_saving_vs_greedy_pct": 12.408,
+        "mean_saving_vs_order_pct": 34.077,
+        "worse_than_greedy": 0,
+        "fleet_infeasible": 0,
+        "mean_runtime_s": 1.658
+      },
+      "ortools": {
+        "mean_km": 131.564,
+        "std_km": 28.149,
+        "mean_gap_vs_ortools_pct": 0.0,
+        "std_gap_vs_ortools_pct": 0.0,
+        "mean_saving_vs_greedy_pct": 12.408,
+        "mean_saving_vs_order_pct": 34.077,
+        "worse_than_greedy": 0,
+        "fleet_infeasible": 0,
+        "mean_runtime_s": 2.002
+      }
+    },
+    "20": {
+      "instances": 30,
+      "order_as_received": {
+        "mean_km": 362.93,
+        "std_km": 41.751,
+        "mean_gap_vs_ortools_pct": 117.176,
+        "std_gap_vs_ortools_pct": 32.121,
+        "mean_saving_vs_greedy_pct": -74.632,
+        "mean_saving_vs_order_pct": 0.0,
+        "worse_than_greedy": 30,
+        "fleet_infeasible": 2,
+        "mean_runtime_s": 0.0
+      },
+      "greedy": {
+        "mean_km": 217.861,
+        "std_km": 53.663,
+        "mean_gap_vs_ortools_pct": 26.585,
+        "std_gap_vs_ortools_pct": 12.458,
+        "mean_saving_vs_greedy_pct": 0.0,
+        "mean_saving_vs_order_pct": 40.021,
+        "worse_than_greedy": 0,
+        "fleet_infeasible": 0,
+        "mean_runtime_s": 0.0
+      },
+      "ga": {
+        "mean_km": 170.246,
+        "std_km": 29.188,
+        "mean_gap_vs_ortools_pct": -0.006,
+        "std_gap_vs_ortools_pct": 0.032,
+        "mean_saving_vs_greedy_pct": 20.285,
+        "mean_saving_vs_order_pct": 52.982,
+        "worse_than_greedy": 0,
+        "fleet_infeasible": 0,
+        "mean_runtime_s": 3.978
+      },
+      "ga_unseeded": {
+        "mean_km": 170.246,
+        "std_km": 29.188,
+        "mean_gap_vs_ortools_pct": -0.006,
+        "std_gap_vs_ortools_pct": 0.032,
+        "mean_saving_vs_greedy_pct": 20.285,
+        "mean_saving_vs_order_pct": 52.982,
+        "worse_than_greedy": 0,
+        "fleet_infeasible": 0,
+        "mean_runtime_s": 3.97
+      },
+      "ortools": {
+        "mean_km": 170.255,
+        "std_km": 29.185,
+        "mean_gap_vs_ortools_pct": 0.0,
+        "std_gap_vs_ortools_pct": 0.0,
+        "mean_saving_vs_greedy_pct": 20.28,
+        "mean_saving_vs_order_pct": 52.979,
+        "worse_than_greedy": 0,
+        "fleet_infeasible": 0,
+        "mean_runtime_s": 4.002
+      }
+    },
+    "50": {
+      "instances": 30,
+      "order_as_received": {
+        "mean_km": 863.712,
+        "std_km": 64.536,
+        "mean_gap_vs_ortools_pct": 242.944,
+        "std_gap_vs_ortools_pct": 34.029,
+        "mean_saving_vs_greedy_pct": -173.159,
+        "mean_saving_vs_order_pct": 0.0,
+        "worse_than_greedy": 30,
+        "fleet_infeasible": 0,
+        "mean_runtime_s": 0.0
+      },
+      "greedy": {
+        "mean_km": 322.545,
+        "std_km": 49.864,
+        "mean_gap_vs_ortools_pct": 26.615,
+        "std_gap_vs_ortools_pct": 8.852,
+        "mean_saving_vs_greedy_pct": 0.0,
+        "mean_saving_vs_order_pct": 62.572,
+        "worse_than_greedy": 0,
+        "fleet_infeasible": 0,
+        "mean_runtime_s": 0.001
+      },
+      "ga": {
+        "mean_km": 252.554,
+        "std_km": 25.805,
+        "mean_gap_vs_ortools_pct": -0.428,
+        "std_gap_vs_ortools_pct": 1.193,
+        "mean_saving_vs_greedy_pct": 20.99,
+        "mean_saving_vs_order_pct": 70.691,
+        "worse_than_greedy": 0,
+        "fleet_infeasible": 0,
+        "mean_runtime_s": 10.005
+      },
+      "ga_unseeded": {
+        "mean_km": 252.594,
+        "std_km": 26.054,
+        "mean_gap_vs_ortools_pct": -0.422,
+        "std_gap_vs_ortools_pct": 1.069,
+        "mean_saving_vs_greedy_pct": 20.988,
+        "mean_saving_vs_order_pct": 70.685,
+        "worse_than_greedy": 0,
+        "fleet_infeasible": 0,
+        "mean_runtime_s": 20.496
+      },
+      "ortools": {
+        "mean_km": 253.698,
+        "std_km": 26.323,
+        "mean_gap_vs_ortools_pct": 0.0,
+        "std_gap_vs_ortools_pct": 0.0,
+        "mean_saving_vs_greedy_pct": 20.654,
+        "mean_saving_vs_order_pct": 70.559,
+        "worse_than_greedy": 0,
+        "fleet_infeasible": 0,
+        "mean_runtime_s": 38.322
+      }
+    },
+    "100": {
+      "instances": 30,
+      "order_as_received": {
+        "mean_km": 1716.561,
+        "std_km": 85.53,
+        "mean_gap_vs_ortools_pct": 373.816,
+        "std_gap_vs_ortools_pct": 31.921,
+        "mean_saving_vs_greedy_pct": -278.097,
+        "mean_saving_vs_order_pct": 0.0,
+        "worse_than_greedy": 30,
+        "fleet_infeasible": 0,
+        "mean_runtime_s": 0.0
+      },
+      "greedy": {
+        "mean_km": 457.384,
+        "std_km": 44.094,
+        "mean_gap_vs_ortools_pct": 25.709,
+        "std_gap_vs_ortools_pct": 6.048,
+        "mean_saving_vs_greedy_pct": 0.0,
+        "mean_saving_vs_order_pct": 73.335,
+        "worse_than_greedy": 0,
+        "fleet_infeasible": 0,
+        "mean_runtime_s": 0.003
+      },
+      "ga": {
+        "mean_km": 364.395,
+        "std_km": 27.366,
+        "mean_gap_vs_ortools_pct": 0.24,
+        "std_gap_vs_ortools_pct": 2.24,
+        "mean_saving_vs_greedy_pct": 20.122,
+        "mean_saving_vs_order_pct": 78.748,
+        "worse_than_greedy": 0,
+        "fleet_infeasible": 0,
+        "mean_runtime_s": 20.026
+      },
+      "ga_unseeded": {
+        "mean_km": 362.365,
+        "std_km": 26.038,
+        "mean_gap_vs_ortools_pct": -0.296,
+        "std_gap_vs_ortools_pct": 2.136,
+        "mean_saving_vs_greedy_pct": 20.525,
+        "mean_saving_vs_order_pct": 78.869,
+        "worse_than_greedy": 0,
+        "fleet_infeasible": 0,
+        "mean_runtime_s": 20.033
+      },
+      "ortools": {
+        "mean_km": 363.411,
+        "std_km": 24.464,
+        "mean_gap_vs_ortools_pct": 0.0,
+        "std_gap_vs_ortools_pct": 0.0,
+        "mean_saving_vs_greedy_pct": 20.273,
+        "mean_saving_vs_order_pct": 78.806,
+        "worse_than_greedy": 0,
+        "fleet_infeasible": 0,
+        "mean_runtime_s": 20.004
+      }
+    }
+  },
+  "cvrplib_A": {
+    "A-n32-k5": {
+      "n": 31,
+      "vehicles": 5,
+      "bks": 784.0,
+      "bks_proven_optimal": true,
+      "order_as_received": {
+        "mean": 2082.0,
+        "std": 0.0,
+        "runs": 1,
+        "gap_vs_bks_pct": 165.561,
+        "fleet_infeasible_runs": 0,
+        "mean_runtime_s": 0.0
+      },
+      "greedy": {
+        "mean": 1145.0,
+        "std": 0.0,
+        "runs": 1,
+        "gap_vs_bks_pct": 46.046,
+        "fleet_infeasible_runs": 0,
+        "mean_runtime_s": 0.0
+      },
+      "ga": {
+        "mean": 789.67,
+        "std": 9.81,
+        "runs": 3,
+        "gap_vs_bks_pct": 0.723,
+        "fleet_infeasible_runs": 0,
+        "mean_runtime_s": 5.006
+      },
+      "ga_unseeded": {
+        "mean": 807.67,
+        "std": 22.19,
+        "runs": 3,
+        "gap_vs_bks_pct": 3.019,
+        "fleet_infeasible_runs": 0,
+        "mean_runtime_s": 5.008
+      },
+      "ortools": {
+        "mean": 796.0,
+        "std": 0.0,
+        "runs": 1,
+        "gap_vs_bks_pct": 1.531,
+        "fleet_infeasible_runs": 0,
+        "mean_runtime_s": 5.003
+      }
+    },
+    "A-n33-k5": {
+      "n": 32,
+      "vehicles": 5,
+      "bks": 661.0,
+      "bks_proven_optimal": true,
+      "order_as_received": {
+        "mean": 1854.0,
+        "std": 0.0,
+        "runs": 1,
+        "gap_vs_bks_pct": 180.484,
+        "fleet_infeasible_runs": 0,
+        "mean_runtime_s": 0.0
+      },
+      "greedy": {
+        "mean": 977.0,
+        "std": 0.0,
+        "runs": 1,
+        "gap_vs_bks_pct": 47.806,
+        "fleet_infeasible_runs": 0,
+        "mean_runtime_s": 0.0
+      },
+      "ga": {
+        "mean": 662.0,
+        "std": 1.73,
+        "runs": 3,
+        "gap_vs_bks_pct": 0.151,
+        "fleet_infeasible_runs": 0,
+        "mean_runtime_s": 5.008
+      },
+      "ga_unseeded": {
+        "mean": 661.0,
+        "std": 0.0,
+        "runs": 3,
+        "gap_vs_bks_pct": 0.0,
+        "fleet_infeasible_runs": 0,
+        "mean_runtime_s": 5.003
+      },
+      "ortools": {
+        "mean": 661.0,
+        "std": 0.0,
+        "runs": 1,
+        "gap_vs_bks_pct": 0.0,
+        "fleet_infeasible_runs": 0,
+        "mean_runtime_s": 5.001
+      }
+    },
+    "A-n37-k6": {
+      "n": 36,
+      "vehicles": 6,
+      "bks": 949.0,
+      "bks_proven_optimal": true,
+      "order_as_received": {
+        "mean": 2049.0,
+        "std": 0.0,
+        "runs": 1,
+        "gap_vs_bks_pct": 115.911,
+        "fleet_infeasible_runs": 1,
+        "mean_runtime_s": 0.0
+      },
+      "greedy": {
+        "mean": 1334.0,
+        "std": 0.0,
+        "runs": 1,
+        "gap_vs_bks_pct": 40.569,
+        "fleet_infeasible_runs": 0,
+        "mean_runtime_s": 0.0
+      },
+      "ga": {
+        "mean": 1035.0,
+        "std": 24.64,
+        "runs": 3,
+        "gap_vs_bks_pct": 9.062,
+        "fleet_infeasible_runs": 0,
+        "mean_runtime_s": 5.006
+      },
+      "ga_unseeded": {
+        "mean": 1040.0,
+        "std": 33.42,
+        "runs": 3,
+        "gap_vs_bks_pct": 9.589,
+        "fleet_infeasible_runs": 0,
+        "mean_runtime_s": 5.009
+      },
+      "ortools": {
+        "mean": 953.0,
+        "std": 0.0,
+        "runs": 1,
+        "gap_vs_bks_pct": 0.421,
+        "fleet_infeasible_runs": 0,
+        "mean_runtime_s": 5.001
+      }
+    },
+    "A-n39-k5": {
+      "n": 38,
+      "vehicles": 5,
+      "bks": 822.0,
+      "bks_proven_optimal": true,
+      "order_as_received": {
+        "mean": 2326.0,
+        "std": 0.0,
+        "runs": 1,
+        "gap_vs_bks_pct": 182.968,
+        "fleet_infeasible_runs": 1,
+        "mean_runtime_s": 0.0
+      },
+      "greedy": {
+        "mean": 1070.0,
+        "std": 0.0,
+        "runs": 1,
+        "gap_vs_bks_pct": 30.17,
+        "fleet_infeasible_runs": 0,
+        "mean_runtime_s": 0.0
+      },
+      "ga": {
+        "mean": 867.67,
+        "std": 20.11,
+        "runs": 3,
+        "gap_vs_bks_pct": 5.556,
+        "fleet_infeasible_runs": 0,
+        "mean_runtime_s": 5.003
+      },
+      "ga_unseeded": {
+        "mean": 854.0,
+        "std": 15.72,
+        "runs": 3,
+        "gap_vs_bks_pct": 3.893,
+        "fleet_infeasible_runs": 0,
+        "mean_runtime_s": 5.001
+      },
+      "ortools": {
+        "mean": 833.0,
+        "std": 0.0,
+        "runs": 1,
+        "gap_vs_bks_pct": 1.338,
+        "fleet_infeasible_runs": 0,
+        "mean_runtime_s": 5.001
+      }
+    },
+    "A-n45-k7": {
+      "n": 44,
+      "vehicles": 7,
+      "bks": 1146.0,
+      "bks_proven_optimal": true,
+      "order_as_received": {
+        "mean": 2650.0,
+        "std": 0.0,
+        "runs": 1,
+        "gap_vs_bks_pct": 131.239,
+        "fleet_infeasible_runs": 0,
+        "mean_runtime_s": 0.0
+      },
+      "greedy": {
+        "mean": 1428.0,
+        "std": 0.0,
+        "runs": 1,
+        "gap_vs_bks_pct": 24.607,
+        "fleet_infeasible_runs": 0,
+        "mean_runtime_s": 0.0
+      },
+      "ga": {
+        "mean": 1165.67,
+        "std": 0.58,
+        "runs": 3,
+        "gap_vs_bks_pct": 1.716,
+        "fleet_infeasible_runs": 0,
+        "mean_runtime_s": 10.003
+      },
+      "ga_unseeded": {
+        "mean": 1171.33,
+        "std": 9.24,
+        "runs": 3,
+        "gap_vs_bks_pct": 2.211,
+        "fleet_infeasible_runs": 0,
+        "mean_runtime_s": 10.005
+      },
+      "ortools": {
+        "mean": 1146.0,
+        "std": 0.0,
+        "runs": 1,
+        "gap_vs_bks_pct": 0.0,
+        "fleet_infeasible_runs": 0,
+        "mean_runtime_s": 10.002
+      }
+    },
+    "A-n53-k7": {
+      "n": 52,
+      "vehicles": 7,
+      "bks": 1010.0,
+      "bks_proven_optimal": true,
+      "order_as_received": {
+        "mean": 3191.0,
+        "std": 0.0,
+        "runs": 1,
+        "gap_vs_bks_pct": 215.941,
+        "fleet_infeasible_runs": 1,
+        "mean_runtime_s": 0.0
+      },
+      "greedy": {
+        "mean": 1444.0,
+        "std": 0.0,
+        "runs": 1,
+        "gap_vs_bks_pct": 42.97,
+        "fleet_infeasible_runs": 0,
+        "mean_runtime_s": 0.0
+      },
+      "ga": {
+        "mean": 1061.0,
+        "std": 17.78,
+        "runs": 3,
+        "gap_vs_bks_pct": 5.05,
+        "fleet_infeasible_runs": 0,
+        "mean_runtime_s": 9.42
+      },
+      "ga_unseeded": {
+        "mean": 1087.33,
+        "std": 27.79,
+        "runs": 3,
+        "gap_vs_bks_pct": 7.657,
+        "fleet_infeasible_runs": 0,
+        "mean_runtime_s": 10.002
+      },
+      "ortools": {
+        "mean": 1053.0,
+        "std": 0.0,
+        "runs": 1,
+        "gap_vs_bks_pct": 4.257,
+        "fleet_infeasible_runs": 0,
+        "mean_runtime_s": 10.002
+      }
+    },
+    "A-n60-k9": {
+      "n": 59,
+      "vehicles": 9,
+      "bks": 1354.0,
+      "bks_proven_optimal": true,
+      "order_as_received": {
+        "mean": 3769.0,
+        "std": 0.0,
+        "runs": 1,
+        "gap_vs_bks_pct": 178.36,
+        "fleet_infeasible_runs": 1,
+        "mean_runtime_s": 0.0
+      },
+      "greedy": {
+        "mean": 1837.0,
+        "std": 0.0,
+        "runs": 1,
+        "gap_vs_bks_pct": 35.672,
+        "fleet_infeasible_runs": 0,
+        "mean_runtime_s": 0.001
+      },
+      "ga": {
+        "mean": 1404.67,
+        "std": 36.23,
+        "runs": 3,
+        "gap_vs_bks_pct": 3.742,
+        "fleet_infeasible_runs": 0,
+        "mean_runtime_s": 10.006
+      },
+      "ga_unseeded": {
+        "mean": 1418.67,
+        "std": 28.29,
+        "runs": 3,
+        "gap_vs_bks_pct": 4.776,
+        "fleet_infeasible_runs": 0,
+        "mean_runtime_s": 10.005
+      },
+      "ortools": {
+        "mean": 1359.0,
+        "std": 0.0,
+        "runs": 1,
+        "gap_vs_bks_pct": 0.369,
+        "fleet_infeasible_runs": 0,
+        "mean_runtime_s": 10.001
+      }
+    },
+    "A-n69-k9": {
+      "n": 68,
+      "vehicles": 9,
+      "bks": 1159.0,
+      "bks_proven_optimal": true,
+      "order_as_received": {
+        "mean": 4198.0,
+        "std": 0.0,
+        "runs": 1,
+        "gap_vs_bks_pct": 262.209,
+        "fleet_infeasible_runs": 1,
+        "mean_runtime_s": 0.0
+      },
+      "greedy": {
+        "mean": 1513.0,
+        "std": 0.0,
+        "runs": 1,
+        "gap_vs_bks_pct": 30.544,
+        "fleet_infeasible_runs": 0,
+        "mean_runtime_s": 0.001
+      },
+      "ga": {
+        "mean": 1210.0,
+        "std": 28.05,
+        "runs": 3,
+        "gap_vs_bks_pct": 4.4,
+        "fleet_infeasible_runs": 0,
+        "mean_runtime_s": 20.019
+      },
+      "ga_unseeded": {
+        "mean": 1202.33,
+        "std": 23.76,
+        "runs": 3,
+        "gap_vs_bks_pct": 3.739,
+        "fleet_infeasible_runs": 0,
+        "mean_runtime_s": 20.012
+      },
+      "ortools": {
+        "mean": 1187.0,
+        "std": 0.0,
+        "runs": 1,
+        "gap_vs_bks_pct": 2.416,
+        "fleet_infeasible_runs": 0,
+        "mean_runtime_s": 20.002
+      }
+    },
+    "A-n80-k10": {
+      "n": 79,
+      "vehicles": 10,
+      "bks": 1763.0,
+      "bks_proven_optimal": true,
+      "order_as_received": {
+        "mean": 5163.0,
+        "std": 0.0,
+        "runs": 1,
+        "gap_vs_bks_pct": 192.853,
+        "fleet_infeasible_runs": 1,
+        "mean_runtime_s": 0.0
+      },
+      "greedy": {
+        "mean": 2348.0,
+        "std": 0.0,
+        "runs": 1,
+        "gap_vs_bks_pct": 33.182,
+        "fleet_infeasible_runs": 0,
+        "mean_runtime_s": 0.001
+      },
+      "ga": {
+        "mean": 1884.67,
+        "std": 16.17,
+        "runs": 3,
+        "gap_vs_bks_pct": 6.901,
+        "fleet_infeasible_runs": 0,
+        "mean_runtime_s": 19.936
+      },
+      "ga_unseeded": {
+        "mean": 1877.67,
+        "std": 36.77,
+        "runs": 3,
+        "gap_vs_bks_pct": 6.504,
+        "fleet_infeasible_runs": 0,
+        "mean_runtime_s": 20.001
+      },
+      "ortools": {
+        "mean": 1810.0,
+        "std": 0.0,
+        "runs": 1,
+        "gap_vs_bks_pct": 2.666,
+        "fleet_infeasible_runs": 0,
+        "mean_runtime_s": 20.002
+      }
+    }
+  },
+  "cvrplib_A_mean_gap_vs_bks_pct": {
+    "order_as_received": 180.614,
+    "greedy": 36.841,
+    "ga": 4.145,
+    "ga_unseeded": 4.599,
+    "ortools": 1.444
+  }
+}

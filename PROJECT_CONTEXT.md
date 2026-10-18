@@ -1,553 +1,207 @@
-# epoch — Full Project Context Document
+# epoch — Project Context
 
-# For AI Tool Handoff — Complete Project Understanding
-
----
-
-## 1. WHAT THIS PROJECT IS
-
-**epoch** is a supply chain intelligence web platform that uses machine learning to give
-two types of users actionable insights from a supply chain dataset.
-
-- It is NOT a marketplace. It does NOT let users buy or sell things.
-- It is a PREDICTION + INSIGHT tool. Users query the model and get back analytics.
-- The ML models are still being built. The codebase uses heuristic stubs right now,
-  with clearly marked replacement points for when the real .pkl model files are ready.
-- The frontend is served by Flask (not a separate React/Node app).
+Handoff document: what the system does, how data flows, where each number
+comes from, and the rules the code follows. Results live in `results/`; the
+README copies its tables from there.
 
 ---
 
-## 2. TWO PORTALS — WHO USES WHAT
+## 1. What this project is
 
-### Producer Portal
+A Flask app with three portals on top of the public **DataCo "Smart Supply
+Chain for Big Data Analysis"** dataset (180,519 order-item rows, 2015-01 to
+2018-01) plus a Bangalore road network:
 
-- Role: A business/seller who wants to understand where demand is for their products.
-- Inputs: Product name + Destination City (both from searchable dropdowns).
-- Output from model: Demand zone classification (High Demand / Emerging Market / Low Demand),
-  demand score (0–100%), total sales, average profit per order, late delivery risk %,
-  and a comparison table of the top 5 global regions for that product.
+| Portal | Question it answers | Method |
+|---|---|---|
+| Producer | Where is demand, and where is it unprofitable? | Descriptive analytics + KMeans demand segments (k by silhouette) |
+| Consumer | Will this new order ship later than promised, and why? | XGBoost on order-time features only, time-based evaluation, TreeSHAP reasons |
+| Fleet Optimizer | How should K capacity-limited vehicles serve these stops from a depot? | CVRP: greedy, genetic algorithm (giant tour + Prins split), OR-Tools; OSM road distances |
 
-### Consumer Portal
-
-- Role: A customer who wants to know about their delivery before placing/tracking an order.
-- Inputs: Product name + Pincode/Zipcode (both from searchable dropdowns).
-- Output from model: Delay risk prediction (Safe / Warning / Risk), confidence %,
-  estimated delivery days, average delay gap (real vs scheduled), recommended shipping
-  mode with a plain-English reason, and location context (market, region, country).
+Ground rules: no hard-coded or "estimated" metrics; every reported number is
+produced by a script into `results/`; estimates (fuel/CO2) are labelled as
+estimates; nothing that is a rule is called a model.
 
 ---
 
-## 3. COMPLETE FILE STRUCTURE
+## 2. Repository layout
 
 ```
-epoch/
-├── frontend/
-│   ├── index.html                ← Landing page (portal selector)
-│   ├── producer.html             ← Producer dashboard
-│   ├── consumer.html             ← Consumer dashboard
-│   ├── styles.css                ← Shared dark-theme design system
-│   └── app.js                    ← Shared frontend utility functions
-│
-├── backend/
-│   ├── app.py                    ← Flask entry point, serves frontend, registers blueprints
-│   ├── routes/
-│   │   ├── prediction_routes.py  ← All ML prediction endpoints + dropdown data endpoints
-│   │   └── recommendation_routes.py ← Weather + news signal endpoints
-│   ├── services/
-│   │   ├── weather_service.py    ← OpenWeatherMap API (falls back to mock data)
-│   │   └── news_service.py       ← NewsAPI (falls back to mock data)
-│   └── utils/
-│       ├── preprocessing.py      ← CSV loader, column normaliser, PII stripper
-│       └── feature_engineering.py ← Shared feature builders for all models
-│
-├── models/
-│   ├── consumer_models/
-│   │   └── consumer_insights.py  ← Unified consumer model (delay + shipping in one file)
-│   └── producer_models/
-│       └── demand_clustering.py  ← Producer demand zone classifier
-│
-├── data/
-│   ├── raw/                      ← Place original CSV here if not using processed/
-│   ├── processed/                ← Preferred location for the dataset CSV
-│   └── external/                 ← Weather/news data storage
-│
-├── notebooks/
-│   └── eda.ipynb                 ← EDA notebook (uses data/raw/supply_chain.csv)
-│
-├── saved_models/                 ← Drop trained .pkl files here when ready
-│   ├── cluster_model.pkl         ← (not yet created — stub active)
-│   ├── delay_model.pkl           ← (not yet created — stub active)
-│   └── risk_model.pkl            ← (not yet created — stub active)
-│
-├── config/
-│   ├── config.yaml               ← API keys + thresholds + model paths
-│   └── config.yaml.example       ← Safe template (no secrets)
-│
-├── requirements.txt
-├── README.md
-└── .gitignore
+backend/
+  app.py                    Flask app, blueprints, /api/health (reports trained artifacts), graph warm-up
+  config.py                 loads config.yaml deep-merged over config.yaml.example
+  routes/
+    prediction_routes.py    /api/predict/*   (producer + consumer)
+    recommendation_routes.py /api/recommend/* (CSV shipping what-if, weather, news)
+    routing_routes.py       /api/route/*     (fleet optimizer)
+  services/
+    road_network.py         OSM graph cache (GraphML -> .npz), KD-tree snapping, multi-source Dijkstra
+    route_optimizer.py      request parsing, distance matrix + fallback, solver dispatch, comparisons, estimates
+    weather_service.py      OpenWeatherMap; static sample data labelled source='mock' without a key
+    news_service.py         NewsAPI; same convention
+  utils/
+    preprocessing.py        CSV loading, column-name normalisation, numeric_column()
+    feature_engineering.py  descriptive producer features + rule-based composite score
+models/
+  routing_models/
+    cvrp.py                 instance/solution types, validation, Prins split, 2-opt, relocate
+    greedy.py               capacity-aware nearest neighbour; order-as-received baseline
+    genetic_algorithm.py    GA (giant tour, split decoding, tournament, OX, swap/inversion, LS, elitism)
+    ortools_solver.py       OR-Tools routing with capacity dimension, GLS
+  consumer_models/
+    delay_model.py          feature lists, BANNED_COLUMNS + assert_no_leakage, pipeline factory, inference, SHAP
+    consumer_insights.py    new-order response: prediction, mode what-if, labelled history
+    shipping_recommendation.py  CSV what-if over shipping modes
+  producer_models/
+    demand_segments.py      product x city aggregation, KMeans inference, centroid-based names
+    demand_clustering.py    producer endpoints: segment + descriptive analytics
+scripts/
+  download_osm_graph.py     one-time graph download + detour-factor measurement
+  train_delay_model.py      trains/evaluates the delay model -> saved_models/, results/
+  train_demand_clusters.py  trains KMeans -> saved_models/, results/
+  benchmark_routing.py      GA tuning + routing benchmark -> results/
+frontend/                   index.html, producer.html, consumer.html, fleet.html, styles.css, app.js
+tests/                      pytest suite (offline: network blocked, graph loader faked)
+results/                    generated metrics (committed)
+saved_models/, data/        generated / downloaded artifacts (gitignored)
+docs/CHANGELOG_NOTES.md     what changed and why, per task
 ```
 
 ---
 
-## 4. DATASET
+## 3. Data
 
-### Source
-
-Standard e-commerce supply chain dataset. ~180,000 rows. Global orders.
-
-### Key columns used by the models
-
-| Canonical Name (after preprocessing) | Original CSV Name             | Used By               |
-| ------------------------------------ | ----------------------------- | --------------------- |
-| Product_Name                         | Product Name                  | Both portals dropdown |
-| Order_City                           | Order City                    | Producer dropdown     |
-| Customer_Zipcode                     | Customer Zipcode              | Consumer dropdown     |
-| Order_Region                         | Order Region                  | Both models           |
-| Market                               | Market                        | Both models           |
-| Sales                                | Sales                         | Demand clustering     |
-| Order_Item_Quantity                  | Order Item Quantity           | Demand clustering     |
-| Order_Profit_Per_Order               | Order Profit Per Order        | Demand + consumer     |
-| Late_delivery_risk                   | Late_delivery_risk            | Consumer insights     |
-| Days_for_shipping_real               | Days for shipping (real)      | Consumer insights     |
-| Days_for_shipment_scheduled          | Days for shipment (scheduled) | Consumer insights     |
-| Shipping_Mode                        | Shipping Mode                 | Shipping rec.         |
-| Customer_City                        | Customer City                 | Context               |
-| Customer_Country                     | Customer Country              | Context               |
-| Order_Country                        | Order Country                 | Context               |
-| Order_State                          | Order State                   | Context               |
-| Order_Status                         | Order Status                  | Context               |
-| Category_Name                        | Category Name                 | Fallback for product  |
-
-### Markets in the dataset
-
-Africa, Europe, LATAM, Pacific Asia, USCA
-
-### Delivery Status values
-
-Advance shipping, Late delivery, Shipping canceled, Shipping on time
-
-### Order Status values
-
-COMPLETE, PENDING, CLOSED, PENDING_PAYMENT, CANCELED, PROCESSING, SUSPECTED_FRAUD
-
-### Shipping Mode values
-
-Standard Class, First Class, Second Class, Same Day
-
-### PII columns (auto-stripped during preprocessing)
-
-Customer_Email, Customer_Fname, Customer_Lname, Customer_Password,
-Customer_Street, Product_Description, Product_Image
+* `data/raw/DataCoSupplyChainDataset.csv` (latin-1). Gitignored. Column
+  names are normalised by `preprocessing.load_and_clean_csv` (e.g. "Days for
+  shipping (real)" → `Days_for_shipping_real`); PII columns are dropped.
+* Each row is an order **item**; items of one order share the order date and
+  the label.
+* `Late_delivery_risk` = 1 when `Days_for_shipping_real > Days_for_shipment_scheduled`.
+  The promised days are fixed per mode: Same Day 0, First Class 1, Second
+  Class 2, Standard Class 4.
+* Structure that matters for modelling (measured on the test split): First
+  Class shipped orders are 100 % late; Same Day orders are late exactly when
+  placed at or after 12:00; Second/Standard Class late rates (~80 % / ~39 %)
+  do not depend on the available features.
+* Canceled orders (`Delivery_Status == "Shipping canceled"`, = Order_Status
+  CANCELED or SUSPECTED_FRAUD, 7,754 rows) have label 0 but never shipped;
+  the delay model excludes them.
+* Road network: OSMnx drive graph for "Bangalore, India", largest strongly
+  connected component, 155,442 nodes / 392,843 directed edges, stored under
+  `data/external/osm/` (gitignored).
+* CVRPLIB Augerat set A instances are downloaded by the benchmark into
+  `data/external/cvrplib/` (gitignored); best-known costs are read from the
+  `.sol` files.
 
 ---
 
-## 5. HOW THE DATA FLOWS (END TO END)
+## 4. Consumer portal: late-delivery model
 
-### Producer flow
+* **Leakage rule**: features must be known when the order is placed.
+  `delay_model.BANNED_COLUMNS` = {Late_delivery_risk, Delivery_Status,
+  Days_for_shipping_real, Order_Status, Shipping_Date, shipping_delay_gap};
+  `assert_no_leakage()` runs at import, in training, and in tests (also on
+  names derived from banned columns).
+* **Features**: Shipping_Mode, Type (payment), Customer_Segment,
+  Department/Category/Product name, Market, Order_Region, Order_Country,
+  Days_for_shipment_scheduled, Product_Price, Order_Item_Quantity,
+  Order_Item_Discount_Rate, Sales, order month/day-of-week/day/hour.
+* **Evaluation**: chronological 70/10/20 split; F1 threshold chosen on
+  validation; baselines = majority class, shipping-mode lookup, logistic
+  regression; XGBoost with early stopping. Metrics, per-mode AUC and the
+  calibration curve: `results/delay_model_metrics.json`,
+  `results/delay_model_calibration.png`.
+* **Inference** (`POST /api/predict/consumer`): builds one feature row for a
+  hypothetical order from lookups saved with the model (product → category,
+  department, median price; country → region, market; mode → promised days),
+  returns probability, threshold, top-5 SHAP reasons (XGBoost
+  `pred_contribs`, same trees as `predict_proba`), the same order under every
+  shipping mode, descriptive history, and the model-quality note.
+* External weather/news signals are attached only when the services return
+  live data (real API keys).
 
-1. User opens /producer in browser
-2. Frontend calls GET /api/predict/options/products → populates product dropdown
-3. Frontend calls GET /api/predict/options/cities → populates city dropdown
-4. User selects product + city, clicks "Get Insights"
-5. Frontend sends POST /api/predict/demand with JSON { "product": "...", "city": "..." }
-6. Backend loads cached dataset → filters rows matching product + city
-7. Calls demand_clustering.predict_for_product_city(df, product, city)
-8. Model computes demand score, classifies zone, aggregates stats, finds top 5 regions
-9. Returns JSON → frontend renders zone hero card + stats + top regions table
+## 5. Producer portal
 
-### Consumer flow
+* **Demand segments**: per (Product_Name, Order_City) pair, features
+  log1p(total sales), log1p(total quantity), profit margin; StandardScaler;
+  KMeans k = 2..8 chosen by silhouette (10k-pair sample). Names derived from
+  centroids (sign of standardised log sales; sign of mean margin). Metrics:
+  `results/demand_clustering_metrics.json`.
+* **Descriptive analytics**: region × category quantity heatmap;
+  "high demand · low profit" = regions with below-median average profit per
+  order ranked by quantity; rule-based composite score (weights in
+  `config.yaml`, labelled as rule-based).
 
-1. User opens /consumer in browser
-2. Frontend calls GET /api/predict/options/products → populates product dropdown
-3. Frontend calls GET /api/predict/options/pincodes → populates pincode dropdown
-4. User selects product + pincode, clicks "Get Insights"
-5. Frontend sends POST /api/predict/consumer with JSON { "product": "...", "pincode": "..." }
-6. Backend loads cached dataset → filters by product + pincode
-7. If no pincode match → falls back to product-only data (flagged in response)
-8. Calls consumer_insights.predict_for_product_pincode(df, product, pincode)
-9. Returns delay risk, estimated days, shipping recommendation, location context
-10. Frontend renders delay hero card + stats + shipping card + context chips
+## 6. Fleet Optimizer
 
-### Dataset caching
-
-The CSV is loaded once on the first request and cached in memory (\_dataset_cache global).
-It checks data/processed/ first, then data/raw/. No reload until server restarts.
-
----
-
-## 6. BACKEND IN DETAIL
-
-### app.py
-
-- Flask app with CORS enabled
-- Max upload: 50MB (kept for future use)
-- Registers two blueprints: prediction_bp (prefix: /api/predict) and recommendation_bp (prefix: /api/recommend)
-- Serves all three HTML pages as static files
-- /api/health endpoint returns version from config.yaml
-
-### prediction_routes.py — All active endpoints
-
-GET /api/predict/options/products
-→ Returns sorted list of unique Product_Name values from dataset
-→ Falls back to Category_Name if Product_Name not found
-
-GET /api/predict/options/cities
-→ Returns sorted list of unique Order_City values
-→ Falls back to Customer_City
-
-GET /api/predict/options/pincodes
-→ Returns sorted list of unique Customer_Zipcode values as clean strings
-
-POST /api/predict/demand
-→ Body: { "product": string, "city": string }
-→ Calls demand_clustering.predict_for_product_city()
-→ Returns: found, product, city, demand_zone, demand_score, market, region,
-total_sales, avg_profit, avg_late_risk, order_count, top_regions[],
-data_source, message
-
-POST /api/predict/consumer
-→ Body: { "product": string, "pincode": string }
-→ Calls consumer_insights.predict_for_product_pincode()
-→ Returns: found, product, pincode, context{}, delay{}, delivery{}, shipping{},
-order_count, avg_sales, data_source
-
-### recommendation_routes.py — Secondary endpoints
-
-GET /api/recommend/weather?region=USCA → Weather disruption signals per hub city
-GET /api/recommend/news?market=Europe → Supply chain news headlines
-(Both fall back to mock data if no API keys configured)
+* **Problem**: CVRP. Depot = node 0; integer demands; identical capacity;
+  at most K routes; every route depot → … → depot.
+* **Request**: `stops` (lat, lng, optional demand/order_id), optional
+  `depot` (default first stop), `vehicle_count`, `capacity` (default
+  ceil(total demand / K)), `time_limit_s`, `seed`. Legacy `weights` accepted
+  and ignored (noted in the response).
+* **Distances**: road network if the cached graph is present and every point
+  snaps within `max_snap_km`; otherwise haversine × `haversine_detour_factor`
+  (median road/straight-line ratio measured on the graph,
+  `results/osm_detour_factor.json`). The response reports `distance_mode`
+  and the reason. The graph is never downloaded during a request.
+* **Solvers**: `/api/route/estimate` → greedy; `/api/route/optimize` → GA;
+  `?solver=ortools` → OR-Tools. All share `solve(instance, seed, time_limit)`.
+* **Comparisons**: every response includes greedy and order-as-received
+  routes on the same matrix and the km / % saved against each.
+* **Estimates**: fuel L = km × `fuel_litres_per_km`; CO2 kg = L ×
+  `co2_kg_per_litre` (config), labelled as estimates; fuel cost only if a
+  price is configured.
+* **GA hyperparameters** come from `config.yaml routing.ga_params`, set from
+  `results/ga_tuned_params.json` (tuned on seeds disjoint from evaluation).
+* **Benchmark**: `results/routing_benchmark.csv`, `routing_benchmark.md`,
+  `routing_benchmark_summary.json`.
 
 ---
 
-## 7. MODELS IN DETAIL
+## 7. API
 
-### Producer Model: demand_clustering.py
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/health` | status + which trained artifacts exist |
+| GET | `/api/predict/options/products` · `cities` · `pincodes` | dropdown values from the dataset |
+| GET | `/api/predict/options/destinations` · `shipping-modes` | values known to the delay model |
+| GET | `/api/predict/producer-overview` | heatmap, low-profit regions, rule-based region scores, KMeans segments |
+| POST | `/api/predict/demand` | `{product, city}` → segment + descriptive context |
+| POST | `/api/predict/consumer` | `{product, destination, shipping_mode, quantity?, order_datetime?}` → late-delivery prediction |
+| POST | `/api/recommend/shipping` | CSV upload → per-order shipping-mode what-if |
+| GET | `/api/recommend/weather` · `news` | external context (`source` = live or mock) |
+| POST | `/api/route/estimate` | greedy CVRP |
+| POST | `/api/route/optimize[?solver=ga\|ortools\|greedy]` | CVRP with the chosen solver |
+| GET | `/api/route/graph/status` | road-graph cache status (never downloads) |
 
-File: models/producer_models/demand_clustering.py
-
-Main function: predict_for_product_city(df, product, city) → dict
-
-Internal pipeline:
-
-1. Identifies product column (Product_Name or Category_Name)
-2. Filters df by product + city
-3. Falls back to product-only if no city match
-4. Calls build_producer_features() from feature_engineering.py
-5. Aggregates: demand_score (mean), total_sales (sum), avg_profit (mean),
-   avg_late_risk (mean), order_count
-6. Computes zone thresholds: low = 33rd percentile, high = 67th percentile
-7. Classifies: score >= high_thresh → "High Demand", >= low_thresh → "Emerging Market", else → "Low Demand"
-8. Calls \_get_top_regions_for_product() for global context (top 5 regions by score)
-
-Stub function to replace: \_classify_demand_zone(score, low_thresh, high_thresh)
-Model file to drop: saved_models/cluster_model.pkl
-
-### Consumer Model: consumer_insights.py
-
-File: models/consumer_models/consumer_insights.py
-
-Main function: predict_for_product_pincode(df, product, pincode) → dict
-
-Internal pipeline:
-
-1. Filters df by product
-2. Further filters by pincode (Customer_Zipcode) if possible
-3. Falls back to product-only subset if no pincode match
-4. Runs three sub-predictions:
-
-   \_predict_delay_risk(subset) → { delay_risk (0–1), is_late_predicted (bool), confidence (0–100) }
-   Currently: uses mean of Late_delivery_risk column
-   Replace with: delay_model.pkl
-
-   \_predict_estimated_days(subset) → { estimated_days, scheduled_days, avg_gap }
-   Currently: means of Days_for_shipping_real and Days_for_shipment_scheduled
-   No separate model file — derived from data
-
-   \_predict_shipping_mode(subset, delay_risk) → { recommended_mode, reason }
-   Currently: rule-based on delay_risk threshold + most common Shipping_Mode
-   Replace with: shipping model when ready
-
-   \_get_region_context(subset) → { region, market, country }
-   Derived from mode of Order_Region, Market, Order_Country columns
-
-### OLD consumer model files (REMOVED — no longer used)
-
-The following files still exist in the repo but are NOT called anywhere:
-
-- models/consumer_models/delay_prediction.py
-- models/consumer_models/risk_scoring_model.py
-- models/consumer_models/shipping_recommendation.py
-  These can be deleted or repurposed. All consumer logic now lives in consumer_insights.py.
+Invalid input returns HTTP 400 with a message; a missing trained model
+returns 503 with the command that creates it.
 
 ---
 
-## 8. PREPROCESSING PIPELINE
+## 8. Conventions
 
-File: backend/utils/preprocessing.py
-Function: load_and_clean_csv(filepath) → pd.DataFrame
+* Imports are package-absolute from the repo root (`backend.*`, `models.*`);
+  `pytest.ini` sets `pythonpath = .`.
+* Config defaults live only in `config/config.yaml.example`; `config.yaml`
+  overrides them (deep merge).
+* DataFrame columns that may be missing are read with
+  `preprocessing.numeric_column(df, col, default)`, never
+  `pd.to_numeric(df.get(col, 0))`.
+* Tests never use the network (sockets blocked in `tests/conftest.py`) and
+  never load the real road graph; road mode is tested with a synthetic grid.
+* Trained artifacts are rebuilt by scripts; `results/` holds the only
+  numbers allowed in docs.
 
-Steps:
-
-1. Read CSV with utf-8 encoding, skip bad lines
-2. Strip whitespace from all column names
-3. Remap column names to canonical names using COLUMN_MAP dict
-4. Drop PII columns
-5. Cast numeric columns using pd.to_numeric(errors='coerce')
-6. Parse date columns: Order_Date, Shipping_Date
-7. Drop fully empty rows
-8. Return clean DataFrame
-
-Also exports:
-
-- safe_float(series) → numeric series with NaN → 0
-- normalise_0_1(series) → min-max normalised series
-
----
-
-## 9. FEATURE ENGINEERING
-
-File: backend/utils/feature_engineering.py
-
-Functions:
-
-- add_shipping_delay_feature(df) → adds "shipping_delay_gap" = real - scheduled days
-- add_profit_margin_feature(df) → adds "profit_margin" = profit / sales
-- add_discount_impact_feature(df)→ adds "high_discount_flag" (1 if discount > 15%)
-- add_demand_score(df) → returns composite score series (Sales 40%, Qty 30%, Profit 20%, Risk_inv 10%)
-- add_temporal_features(df) → adds order_month, order_quarter, order_dow from Order_Date
-- build_producer_features(df) → runs all above for producer model
-- build_consumer_features(df) → runs all above for consumer model
-
----
-
-## 10. FRONTEND IN DETAIL
-
-### Design system (styles.css)
-
-- Dark theme: bg #08080E, surface #111119, surface2 #191923
-- Producer accent colour: --P = #7EB8E8 (electric blue)
-- Consumer accent colour: --C = #7AE0B8 (mint green)
-- Zone colours: High = #7AE0B8, Emerging = #E8C97A, Low = #E87A7A
-- Fonts: Syne (headings, numbers), DM Sans (body), JetBrains Mono (data/code)
-- No external CSS framework (Bootstrap, Tailwind etc.) — all custom CSS
-
-### index.html (Landing page)
-
-- Dark grid background
-- Two portal cards: Producer (blue) and Consumer (green)
-- onclick navigates to /producer or /consumer
-- Status pill at bottom showing model state
-
-### producer.html
-
-- Sidebar with nav: Demand Zones (active), Markets, Trends (stubs)
-- Searchable product dropdown: calls GET /api/predict/options/products on load
-- Searchable city dropdown: calls GET /api/predict/options/cities on load
-- Dropdowns filter as user types (up to 80 results shown)
-- "Get Insights" button disabled until both values selected
-- Results section (hidden until query runs):
-  - Warning banner (if no city match found)
-  - Zone hero card (class changes: high/emerging/low)
-  - Context chips: City, Market, Region, Orders
-  - Stats row: Total Sales, Avg Profit/Order, Late Delivery Risk, Historical Orders
-  - Top regions table: rank, region name, zone badge, score bar, sales, orders
-  - Selected city's region is highlighted in the table
-
-### consumer.html
-
-- Sidebar with nav: Delivery Insights (only one item — no tabs)
-- Searchable product dropdown
-- Searchable pincode dropdown
-- Results section:
-  - Delay hero card (class: safe/warning/risk based on delay_risk threshold)
-    - safe: delay_risk < 0.4, warning: 0.4–0.6, risk: > 0.6
-  - Confidence ring (circular % display)
-  - Stats row: Delay Risk %, Est. Delivery Days, Avg Delay Gap, Historical Orders
-  - Shipping recommendation card (mode badge + reason text)
-  - Context chips: Market, Region, Country, Pincode
-  - Data note (explains if pincode match or fallback)
-
-### Searchable dropdown implementation (both pages)
-
-- Input field + hidden field pair per dropdown
-- On input: filters allProducts/allCities/allPincodes array, renders matching items
-- On item mousedown: sets hidden field value, closes dropdown
-- On blur: closes dropdown after 180ms delay (allows click to register first)
-- Highlights matching text with <mark> tags
-- "Get Insights" button checks both hidden fields are non-empty before enabling
-
----
-
-## 11. CONFIG (config.yaml)
-
-```yaml
-app:
-  name: "epoch"
-  version: "0.1.0"
-  port: 5000
-  debug: true
-
-apis:
-  openweather_key: "" # Optional — falls back to mock data
-  newsapi_key: "" # Optional — falls back to mock data
-
-model:
-  cluster_model_path: "saved_models/cluster_model.pkl"
-  delay_model_path: "saved_models/delay_model.pkl"
-  risk_model_path: "saved_models/risk_model.pkl"
-  demand_score_weights:
-    sales: 0.40
-    quantity: 0.30
-    profit: 0.20
-    risk_inv: 0.10
-
-thresholds:
-  high_demand_percentile: 0.67
-  low_demand_percentile: 0.33
-  risk_critical: 75
-  risk_high: 50
-  risk_medium: 25
-  delay_gap_warning_days: 2
-
-upload:
-  max_size_mb: 50
-  allowed_extensions: ["csv"]
-```
-
----
-
-## 12. CURRENT STATUS OF EACH COMPONENT
-
-| Component                           | Status                          | Notes                                       |
-| ----------------------------------- | ------------------------------- | ------------------------------------------- |
-| Flask backend + routing             | Complete                        | Fully working                               |
-| Preprocessing pipeline              | Complete                        | Handles all column variants                 |
-| Feature engineering                 | Complete                        | Shared across both models                   |
-| Producer demand_clustering.py       | Stub (heuristic)                | Replace \_classify_demand_zone() with .pkl  |
-| Consumer consumer_insights.py       | Stub (heuristic)                | Replace \_predict_delay_risk() with .pkl    |
-| Dropdown population (all 3)         | Complete                        | Products, cities, pincodes from dataset     |
-| Producer frontend                   | Complete                        | Product + city query, full result render    |
-| Consumer frontend                   | Complete                        | Product + pincode query, full result render |
-| Landing page                        | Complete                        |                                             |
-| Weather service                     | Stub (mock data)                | Add OpenWeatherMap API key to activate      |
-| News service                        | Stub (mock data)                | Add NewsAPI key to activate                 |
-| Markets nav page (producer sidebar) | Stub (nav item exists, no page) | Not built yet                               |
-| Trends nav page (producer sidebar)  | Stub (nav item exists, no page) | Not built yet                               |
-| EDA notebook                        | Template ready                  | Add your dataset and run cells              |
-| saved_models/\*.pkl                 | Not yet created                 | Models under development                    |
-
----
-
-## 13. THINGS THAT HAVE BEEN INTENTIONALLY REMOVED
-
-The following were built in earlier versions and then removed by user request:
-
-- CSV file upload on producer dashboard (was: drag-drop zone → bulk demand table)
-- CSV file upload on consumer dashboard (was: drag-drop → 3 separate model tabs)
-- Delay Prediction tab (separate tab on consumer side)
-- Risk Scoring tab (separate tab on consumer side — also had region risk table)
-- Shipping Recommendation tab (separate tab on consumer side)
-- "I'm here to buy / I'm here to sell" landing page language
-- Bulk demand zone table (showing all regions from CSV at once)
-- Market filter pills and sort controls on the bulk table
-
-DO NOT bring these back unless the user explicitly asks.
-
----
-
-## 14. HOW TO PLUG IN TRAINED MODELS
-
-### Step 1: Train and save your model
-
-```python
-import joblib
-joblib.dump(your_trained_model, "epoch/saved_models/cluster_model.pkl")
-```
-
-### Step 2: Producer model replacement
-
-Open: models/producer_models/demand_clustering.py
-Find: \_classify_demand_zone() function
-Replace the stub logic with:
-
-```python
-def _classify_demand_zone(score, low_thresh, high_thresh):
-    model = joblib.load(os.path.join(ROOT, "saved_models", "cluster_model.pkl"))
-    features = [[score]]   # expand to match your model's feature vector
-    label_int = model.predict(features)[0]
-    zone_map = {2: "High Demand", 1: "Emerging Market", 0: "Low Demand"}
-    return zone_map[label_int]
-```
-
-### Step 3: Consumer delay model replacement
-
-Open: models/consumer_models/consumer_insights.py
-Find: \_predict_delay_risk() function
-Replace with:
-
-```python
-def _predict_delay_risk(subset):
-    model  = joblib.load(os.path.join(ROOT, "saved_models", "delay_model.pkl"))
-    X      = subset[YOUR_FEATURE_COLS].fillna(0)
-    risk   = float(model.predict_proba(X)[:, 1].mean())
-    return {
-        "delay_risk":        round(risk, 3),
-        "is_late_predicted": risk >= 0.5,
-        "confidence":        int(abs(risk - 0.5) * 200),
-    }
-```
-
-### Step 4: No other file changes needed
-
-The frontend, routes, and preprocessing are fully decoupled from the model internals.
-The JSON response contract is fixed — as long as your model returns the same dict keys,
-everything will render correctly without touching any other file.
-
----
-
-## 15. HOW TO RUN
+## 9. Running
 
 ```bash
-# From project root
-pip install -r requirements.txt
-
-# Place dataset CSV in:
-#   epoch/data/processed/your_file.csv   ← preferred
-#   OR epoch/data/raw/your_file.csv
-
-cd backend
-python app.py
-
-# Opens at: http://localhost:5000
-# Producer:  http://localhost:5000/producer
-# Consumer:  http://localhost:5000/consumer
+python setup_env.py                                   # .venv (Python 3.11) + requirements + config
+.venv\Scripts\python scripts/download_osm_graph.py    # once, optional (fallback distances without it)
+.venv\Scripts\python scripts/train_delay_model.py
+.venv\Scripts\python scripts/train_demand_clusters.py
+python start_app.py                                   # http://localhost:5000
+.venv\Scripts\python -m pytest
+.venv\Scripts\python scripts/benchmark_routing.py     # ~1.5-2 h
 ```
-
----
-
-## 16. DEPENDENCIES (requirements.txt)
-
-```
-flask==3.0.3
-flask-cors==4.0.1
-pandas==2.2.2
-numpy==1.26.4
-scikit-learn==1.5.0
-joblib==1.4.2
-pyyaml==6.0.1
-requests==2.32.3
-gunicorn==22.0.0
-```
-
----
-
-## 17. CONVENTIONS USED IN THIS CODEBASE
-
-- All model main entry functions are named: run*\*() or predict_for*\*()
-- All stub replacement blocks are marked: # ── REPLACE WITH YOUR MODEL ──
-- Column names in Python code use underscore_case (after preprocessing normalisation)
-- The frontend uses vanilla JS only — no React, Vue, or jQuery
-- CSS variables are defined in :root in styles.css and referenced everywhere
-- All API responses include an "error" key when something goes wrong
-- Fallback behaviour is always defined — no hard failures on missing data

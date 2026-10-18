@@ -1,0 +1,49 @@
+{
+  "chosen_params": {
+    "population_size": 20,
+    "mutation_rate": 0.1,
+    "relocate": true
+  },
+  "mean_gap_vs_ortools_pct": -0.237,
+  "tuning_seeds": [
+    1000,
+    1001,
+    1002,
+    1003,
+    1004,
+    1005,
+    1006,
+    1007,
+    1008,
+    1009
+  ],
+  "tuning_sizes": [
+    20,
+    50
+  ],
+  "grid": {
+    "population_size": [
+      20,
+      40
+    ],
+    "mutation_rate": [
+      0.1,
+      0.3
+    ],
+    "relocate": [
+      false,
+      true
+    ]
+  },
+  "all_configs": {
+    "{'population_size': 20, 'mutation_rate': 0.1, 'relocate': False}": 1.7322,
+    "{'population_size': 20, 'mutation_rate': 0.1, 'relocate': True}": -0.237,
+    "{'population_size': 20, 'mutation_rate': 0.3, 'relocate': False}": 2.3687,
+    "{'population_size': 20, 'mutation_rate': 0.3, 'relocate': True}": -0.198,
+    "{'population_size': 40, 'mutation_rate': 0.1, 'relocate': False}": 3.1772,
+    "{'population_size': 40, 'mutation_rate': 0.1, 'relocate': True}": -0.1218,
+    "{'population_size': 40, 'mutation_rate': 0.3, 'relocate': False}": 4.2365,
+    "{'population_size': 40, 'mutation_rate': 0.3, 'relocate': True}": -0.1586
+  },
+  "distance_mode": "road_network"
+}

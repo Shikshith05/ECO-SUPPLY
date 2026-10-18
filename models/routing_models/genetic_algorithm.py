@@ -12,14 +12,21 @@ Crossover   : order crossover (OX). It keeps a slice of parent 1 in place and
               fills the rest in parent 2's relative order, so the child is
               always a valid permutation.
 Mutation    : swap two customers, or invert a segment (50/50).
-Local search: every offspring is decoded, each route is improved with 2-opt,
-              and the improved routes are written back into the chromosome
+Local search: every offspring is decoded, stops are optionally relocated
+              between routes (`relocate=True`: inter-route moves 2-opt
+              cannot make), each route is improved with 2-opt, and the
+              improved routes are written back into the chromosome
               (Lamarckian learning).
 Replacement : generational with elitism (the best `elite_count` individuals
               survive unchanged). Children whose cost equals an existing
               individual's are rejected as probable clones to keep diversity.
-Stopping    : time limit, maximum generations, or `stall_generations`
-              generations without improvement — whichever comes first.
+Stopping    : time limit, maximum generations, `stall_generations`
+              generations without improvement of the best solution, or a
+              generation that produces no new distinct child (the population
+              has converged) — whichever comes first.
+Small cases : instances with at most `exact_max_stops` stops (default 8) are
+              solved to proven optimality by exact.py instead (dynamic
+              programming, milliseconds); the result is flagged `exact`.
 
 By default one individual is seeded with the greedy nearest-neighbour tour.
 Because split is optimal for a fixed order and elitism keeps the best
@@ -34,7 +41,8 @@ import time
 from dataclasses import asdict, dataclass
 from typing import List, Optional, Tuple
 
-from models.routing_models.cvrp import CVRPInstance, CVRPSolution, INF, solution_distance, split, two_opt
+from models.routing_models.cvrp import CVRPInstance, CVRPSolution, INF, relocate, solution_distance, split, two_opt
+from models.routing_models import exact
 from models.routing_models.greedy import nearest_neighbour_routes
 
 PENALTY_PER_EXTRA_ROUTE = 1e6
@@ -42,15 +50,17 @@ PENALTY_PER_EXTRA_ROUTE = 1e6
 
 @dataclass
 class GAParams:
-    population_size: int = 30
+    population_size: int = 40
     tournament_size: int = 2
     crossover_rate: float = 0.9
-    mutation_rate: float = 0.2
+    mutation_rate: float = 0.1
     local_search_rate: float = 1.0
     elite_count: int = 2
     max_generations: int = 10_000
-    stall_generations: int = 150
+    stall_generations: int = 100
     seed_with_greedy: bool = True
+    relocate: bool = True
+    exact_max_stops: int = 8
 
     @classmethod
     def from_dict(cls, values: Optional[dict]) -> "GAParams":
@@ -80,8 +90,10 @@ class GeneticAlgorithm:
         return cost, tour, routes
 
     def improve(self, ind: Individual) -> Individual:
-        """2-opt every route of the decoded solution, write it back, re-split."""
+        """Relocate + 2-opt the decoded solution, write it back, re-split."""
         _, _, routes = ind
+        if self.p.relocate and ind[0] < PENALTY_PER_EXTRA_ROUTE:
+            routes = relocate(self.inst, routes)
         new_tour = [c for r in routes for c in two_opt(self.inst, r)]
         improved = self.evaluate(new_tour)
         return improved if improved[0] <= ind[0] else ind
@@ -145,6 +157,7 @@ class GeneticAlgorithm:
         pop = sorted(self.initial_population(), key=lambda ind: ind[0])
         best = pop[0]
         generation = stall = 0
+        converged = False
         history = [round(best[0], 4)]
 
         while generation < self.p.max_generations and stall < self.p.stall_generations:
@@ -153,6 +166,7 @@ class GeneticAlgorithm:
             generation += 1
             next_pop = pop[: self.p.elite_count]
             seen = {round(ind[0], 6) for ind in next_pop}
+            new_children = 0
             attempts = 0
             while len(next_pop) < self.p.population_size and attempts < self.p.population_size * 10:
                 attempts += 1
@@ -173,6 +187,10 @@ class GeneticAlgorithm:
                     continue
                 seen.add(key)
                 next_pop.append(ind)
+                new_children += 1
+            if new_children == 0 and time.perf_counter() < deadline:
+                converged = True    # every child was a clone: further generations cannot change anything
+                break
             # If the deadline cut a generation short, keep the best of the old population too.
             if len(next_pop) < self.p.population_size:
                 for ind in pop:
@@ -191,8 +209,9 @@ class GeneticAlgorithm:
         stats = {
             "generations": generation,
             "evaluations": self.evaluations,
-            "stopped_by": ("time_limit" if time.perf_counter() >= deadline
-                           else "stall" if stall >= self.p.stall_generations else "max_generations"),
+            "stopped_by": ("converged" if converged
+                           else "stall" if stall >= self.p.stall_generations
+                           else "time_limit" if time.perf_counter() >= deadline else "max_generations"),
             "best_cost_history": history[-50:],
         }
         return best, stats
@@ -205,6 +224,13 @@ def solve(inst: CVRPInstance, *, seed: int = 0, time_limit: Optional[float] = 5.
         params = GAParams.from_dict(params)
     if inst.n_customers == 0:
         return CVRPSolution(routes=[], distance=0.0, solver="ga", runtime_s=0.0, meta={"params": asdict(params)})
+    if inst.n_customers <= min(params.exact_max_stops, exact.MAX_EXACT_STOPS):
+        sol = exact.solve(inst)
+        return CVRPSolution(routes=sol.routes, distance=sol.distance, solver="ga",
+                            runtime_s=time.perf_counter() - t0,
+                            meta={**sol.meta, "stopped_by": "solved_exactly", "params": asdict(params),
+                                  "note": f"{inst.n_customers} stops <= exact_max_stops={params.exact_max_stops}: "
+                                          "solved to optimality by dynamic programming instead of the GA."})
     ga = GeneticAlgorithm(inst, params, seed=seed)
     best, stats = ga.run(time_limit if time_limit is not None else 5.0)
     routes = [r for r in best[2] if r]

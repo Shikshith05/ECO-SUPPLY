@@ -10,7 +10,8 @@ from scipy.sparse import csr_matrix
 from backend.services import road_network, route_optimizer
 from backend.services.road_network import RoadNetwork, haversine_matrix
 from models.routing_models import genetic_algorithm, greedy, ortools_solver
-from models.routing_models.cvrp import CVRPInstance, route_distance, split, two_opt, validate_solution
+from models.routing_models.cvrp import (CVRPInstance, relocate, route_distance, solution_distance, split,
+                                        two_opt, validate_solution)
 
 
 def random_instance(n, k, seed, slack=1.1, asymmetric=False):
@@ -96,6 +97,15 @@ def test_two_opt_handles_asymmetric_distances():
     improved = two_opt(inst, route)
     assert sorted(improved) == route
     assert route_distance(inst, improved) <= route_distance(inst, route) + 1e-9
+
+
+@pytest.mark.parametrize("asymmetric", [False, True])
+def test_relocate_keeps_solution_valid_and_never_worse(asymmetric):
+    inst = random_instance(20, 4, 9, asymmetric=asymmetric)
+    start = greedy.solve(inst).routes
+    moved = relocate(inst, start)
+    assert validate_solution(inst, moved) == []
+    assert solution_distance(inst, moved) <= solution_distance(inst, start) + 1e-9
 
 
 def test_infeasible_instance_is_reported():
@@ -220,3 +230,43 @@ def test_fuel_and_co2_are_linear_labelled_estimates():
     assert est["co2_kg_est"] == pytest.approx(100 * cfg["fuel_litres_per_km"] * cfg["co2_kg_per_litre"])
     assert "estimate" in est["estimate_basis"].lower()
     assert route_optimizer.estimates(0.0)["co2_kg_est"] == 0
+
+
+# ── exact small instances and early stopping ──────────────────────────────────
+
+def brute_force_optimum(inst):
+    import itertools
+
+    best = math.inf
+    for perm in itertools.permutations(range(1, inst.n_customers + 1)):
+        cost, _ = split(inst, list(perm), max_routes=inst.n_vehicles)
+        best = min(best, cost)
+    return best
+
+
+@pytest.mark.parametrize("n,k,seed,asym", [(5, 1, 0, False), (6, 2, 1, True), (7, 3, 2, False), (7, 2, 3, True)])
+def test_exact_solver_matches_brute_force(n, k, seed, asym):
+    from models.routing_models import exact
+
+    inst = random_instance(n, k, seed, asymmetric=asym)
+    sol = exact.solve(inst)
+    assert validate_solution(inst, sol.routes) == []
+    assert sol.distance == pytest.approx(brute_force_optimum(inst))
+
+
+def test_ga_solves_small_instances_exactly_and_quickly():
+    from models.routing_models import exact
+
+    inst = random_instance(8, 2, 11)
+    ga = genetic_algorithm.solve(inst, seed=0, time_limit=5)
+    assert ga.meta["exact"] is True and ga.meta["stopped_by"] == "solved_exactly"
+    assert ga.runtime_s < 2.0
+    assert ga.distance == pytest.approx(exact.solve(inst).distance)
+    assert ortools_solver.solve(inst, time_limit=1).distance >= ga.distance - 1e-6
+
+
+def test_ga_early_stopping_before_time_limit():
+    inst = random_instance(12, 2, 4)
+    sol = genetic_algorithm.solve(inst, seed=0, time_limit=30, params={"stall_generations": 10})
+    assert sol.meta["stopped_by"] in ("stall", "converged")
+    assert sol.runtime_s < 30

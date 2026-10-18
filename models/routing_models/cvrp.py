@@ -266,6 +266,60 @@ def two_opt(inst: CVRPInstance, route: Sequence[int], max_passes: int = 50) -> L
     return path[1:-1].tolist()
 
 
+def relocate(inst: CVRPInstance, routes: Sequence[Sequence[int]], max_passes: int = 20) -> List[List[int]]:
+    """
+    Inter-route relocate: move one customer to the cheapest position in any
+    route (including its own) whose spare capacity allows it, whenever that
+    shortens the solution. 2-opt alone can never move a stop to a different
+    vehicle, which matters most when capacity is tight. Insertion costs for
+    all positions of a route are computed at once with numpy; the asymmetric
+    matrix is respected because only directed arcs are added or removed.
+    """
+    D, q, cap = inst.dist, inst.demands, inst.capacity
+    routes = [list(r) for r in routes if r]
+    loads = [sum(q[c] for c in r) for r in routes]
+    for _ in range(max_passes):
+        improved = False
+        for ri in range(len(routes)):
+            i = 0
+            while i < len(routes[ri]):
+                r = routes[ri]
+                u = r[i]
+                p = r[i - 1] if i > 0 else 0
+                nx = r[i + 1] if i + 1 < len(r) else 0
+                removal_gain = D[p, u] + D[u, nx] - D[p, nx]
+                best_delta, best_move = -1e-9, None
+                for rj, s in enumerate(routes):
+                    if rj == ri:
+                        s = r[:i] + r[i + 1:]
+                    elif loads[rj] + q[u] > cap + 1e-9:
+                        continue
+                    path = np.array([0, *s, 0], dtype=np.int64)
+                    a, b = path[:-1], path[1:]
+                    insert = D[a, u] + D[u, b] - D[a, b]
+                    k = int(np.argmin(insert))
+                    delta = insert[k] - removal_gain
+                    if delta < best_delta:
+                        best_delta, best_move = delta, (rj, k)
+                if best_move is None:
+                    i += 1
+                    continue
+                rj, k = best_move
+                del routes[ri][i]
+                loads[ri] -= q[u]
+                routes[rj].insert(k, u)
+                loads[rj] += q[u]
+                improved = True
+                if rj != ri:
+                    continue   # position i now holds the next customer
+                i += 1
+        routes = [r for r in routes if r]
+        loads = [sum(q[c] for c in r) for r in routes]
+        if not improved:
+            break
+    return routes
+
+
 def default_capacity(total_demand: float, n_vehicles: int) -> float:
     """Default vehicle capacity when the caller gives none: just enough for the fleet."""
     return float(max(1, math.ceil(total_demand / max(1, n_vehicles))))
