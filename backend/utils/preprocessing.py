@@ -121,6 +121,20 @@ def safe_float(series: pd.Series) -> pd.Series:
     return pd.to_numeric(series, errors="coerce").fillna(0.0)
 
 
+def numeric_column(df: pd.DataFrame, col: str, default: float = 0.0) -> pd.Series:
+    """
+    Return df[col] as a float Series aligned to df.index, with missing values
+    (absent column, NaN, or non-numeric text) replaced by `default`.
+
+    Use this instead of `pd.to_numeric(df.get(col, 0))`: when the column is
+    absent, `df.get` returns the scalar default, and Series methods such as
+    `.fillna()` / `.clip()` then fail on the resulting numpy scalar.
+    """
+    if col in df.columns:
+        return pd.to_numeric(df[col], errors="coerce").fillna(default).astype(float)
+    return pd.Series(float(default), index=df.index, dtype=float)
+
+
 def normalise_0_1(series: pd.Series) -> pd.Series:
     mn, mx = series.min(), series.max()
     if mx > mn:

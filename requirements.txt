@@ -12,4 +12,4 @@ osmnx==1.9.4
 networkx==3.3
 shapely==2.0.4
 deap==1.4.1
-pytest>=7.4.0
+pytest==9.1.1

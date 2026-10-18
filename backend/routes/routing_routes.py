@@ -1,13 +1,11 @@
 """Fleet Optimizer route endpoints."""
 
 import os
-import sys
 from flask import Blueprint, jsonify, request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.insert(0, ROOT)
 
-from services.route_optimizer import greedy_estimate, graph_status, load_bangalore_graph, optimize_routes
+from backend.services.route_optimizer import greedy_estimate, graph_status, load_bangalore_graph, optimize_routes
 
 routing_bp = Blueprint("routing", __name__)
 

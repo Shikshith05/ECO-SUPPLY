@@ -8,8 +8,9 @@ STATUS: STUB — returns mock data until API key is configured.
 """
 
 import os
-import sys
 import requests
+
+from backend.config import api_key as configured_api_key
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -41,14 +42,8 @@ MOCK_WEATHER = {
 
 
 def _get_api_key() -> str | None:
-    try:
-        import yaml
-        config_path = os.path.join(ROOT, "config", "config.yaml")
-        with open(config_path) as f:
-            cfg = yaml.safe_load(f)
-        return cfg.get("apis", {}).get("openweather_key")
-    except Exception:
-        return None
+    # Placeholder values from config.yaml.example count as "no key".
+    return configured_api_key("openweather_key")
 
 
 def _fetch_live(city: str, country_code: str, api_key: str) -> dict:

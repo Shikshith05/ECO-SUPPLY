@@ -8,13 +8,11 @@ Endpoints:
 """
 
 import os
-import sys
 from flask import Blueprint, request, jsonify
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.insert(0, ROOT)
 
-from utils.preprocessing import load_and_clean_csv
+from backend.utils.preprocessing import load_and_clean_csv
 
 recommendation_bp = Blueprint("recommendation", __name__)
 
@@ -55,7 +53,7 @@ def get_weather():
     """
     region = request.args.get("region", None)
     try:
-        from services.weather_service import fetch_weather
+        from backend.services.weather_service import fetch_weather
         data = fetch_weather(region=region)
         return jsonify(data)
     except Exception as e:
@@ -71,7 +69,7 @@ def get_news():
     """
     market = request.args.get("market", None)
     try:
-        from services.news_service import fetch_news
+        from backend.services.news_service import fetch_news
         data = fetch_news(market=market)
         return jsonify(data)
     except Exception as e:

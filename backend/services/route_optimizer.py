@@ -6,7 +6,6 @@ import sys
 from typing import Dict, List
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.insert(0, ROOT)
 
 try:
     import osmnx as ox
