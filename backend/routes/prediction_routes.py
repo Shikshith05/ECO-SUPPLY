@@ -6,11 +6,15 @@ Endpoints:
   GET  /api/predict/options/cities     → unique destination cities
   GET  /api/predict/options/pincodes   → unique customer zipcodes
   POST /api/predict/demand             → Producer: product + city → demand insights
-  POST /api/predict/consumer           → Consumer: product + pincode → delivery insights
+  GET  /api/predict/options/destinations   → destination countries known to the delay model
+  GET  /api/predict/options/shipping-modes → shipping modes with promised days
+  POST /api/predict/consumer           → Consumer: new order (product, destination, mode) → late-delivery model
 """
 
 import os
-import sys
+from datetime import datetime
+from functools import lru_cache
+
 from flask import Blueprint, request, jsonify
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -18,94 +22,46 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 prediction_bp = Blueprint("prediction", __name__)
 
 
-def _augment_shipping_reason_with_external_signals(result: dict) -> dict:
+WAR_KEYWORDS = {
+    "war", "conflict", "attack", "military", "sanction", "sanctions",
+    "missile", "airstrike", "red sea", "shipping lane", "blockade",
+}
+
+
+def _external_signals(market: str) -> dict:
     """
-    Attach weather/news disruption notes as separate fields when delay risk is elevated.
-    Keeps the existing model/rule-based shipping reason unchanged.
+    Weather / news context for the destination market, attached ONLY when the
+    services return live data (API keys configured). Without keys the services
+    return static sample data, which must never be shown as a real disruption.
+    These signals are context for the user; they are not model inputs.
     """
-    if not isinstance(result, dict):
-        return result
+    from backend.services.news_service import fetch_news
+    from backend.services.weather_service import fetch_weather
 
-    delay = result.get("delay") or {}
-    shipping = result.get("shipping") or {}
-    context = result.get("context") or {}
-
-    delay_risk = delay.get("delay_risk")
-    is_late = bool(delay.get("is_late_predicted"))
-    if delay_risk is None:
-        return result
-
-    if not (is_late or float(delay_risk) >= 0.5):
-        return result
-
-    market = context.get("market")
-    if not market:
-        return result
-
-    weather_note = None
-    news_note = None
-    external_factors = []
-
-    # Weather factor
+    out = {"available": False, "weather": None, "news": None}
     try:
-        from backend.services.weather_service import fetch_weather
+        weather = fetch_weather(region=market)
+        news = fetch_news(market=market)
+    except Exception as exc:
+        out["reason"] = f"External services failed: {exc}"
+        return out
+    if weather.get("source") != "live" and news.get("source") != "live":
+        out["reason"] = "No weather/news API keys configured, so no live external signals are shown."
+        return out
 
-        weather_payload = fetch_weather(region=market)
-        weather_items = ((weather_payload or {}).get("weather") or {}).get(market, [])
-        risky_weather = [
-            item for item in weather_items
-            if str(item.get("disruption_risk", "")).lower() in {"high", "medium"}
-        ]
-        if risky_weather:
-            city_bits = [
-                f"{item.get('city')} ({item.get('disruption_risk')})"
-                for item in risky_weather[:3]
-                if item.get("city")
-            ]
-            if city_bits:
-                external_factors.append("weather")
-                weather_note = "Weather disruptions are active in key hubs: " + ", ".join(city_bits) + "."
-    except Exception:
-        pass
-
-    # News / war-conflict factor
-    try:
-        from backend.services.news_service import fetch_news
-
-        news_payload = fetch_news(market=market)
-        articles = (news_payload or {}).get("articles") or []
-        war_keywords = {
-            "war", "conflict", "attack", "military", "sanction", "sanctions",
-            "missile", "airstrike", "red sea", "shipping lane", "blockade",
-        }
-
-        war_related = []
-        for article in articles:
-            title = str(article.get("title", ""))
-            title_l = title.lower()
-            if any(keyword in title_l for keyword in war_keywords):
-                war_related.append(article)
-
-        if war_related:
-            top_title = str(war_related[0].get("title", "")).strip()
-            external_factors.append("war_news")
-            news_note = (
-                "Conflict-related news may be affecting routes"
-                + (f": '{top_title}'" if top_title else ".")
-            )
-    except Exception:
-        pass
-
-    if not weather_note and not news_note:
-        return result
-
-    shipping["external_factors"] = external_factors
-    shipping["external_delay_signals"] = {
-        "weather": weather_note,
-        "news": news_note,
-    }
-    result["shipping"] = shipping
-    return result
+    out["available"] = True
+    if weather.get("source") == "live":
+        risky = [w for w in (weather.get("weather") or {}).get(market, [])
+                 if str(w.get("disruption_risk", "")).lower() in {"high", "medium"}]
+        if risky:
+            out["weather"] = "Live weather alerts in hubs: " + ", ".join(
+                f"{w.get('city')} ({w.get('disruption_risk')})" for w in risky[:3]) + "."
+    if news.get("source") == "live":
+        hits = [a for a in news.get("articles") or []
+                if any(k in str(a.get("title", "")).lower() for k in WAR_KEYWORDS)]
+        if hits:
+            out["news"] = f"Conflict-related headline: '{str(hits[0].get('title', '')).strip()}'"
+    return out
 
 # ── Dataset cache (loaded once on first request) ──────────────────────────────
 _dataset_cache = None
@@ -212,6 +168,49 @@ def get_pincodes():
         return jsonify({"error": str(e)}), 500
 
 
+@lru_cache(maxsize=1)
+def _destination_options() -> tuple:
+    from models.consumer_models.country_names import to_english
+    from models.consumer_models.delay_model import load_bundle
+
+    countries = load_bundle()["lookups"]["countries"]
+    return tuple(sorted(({"label": to_english(c), "value": c} for c in countries), key=lambda o: o["label"]))
+
+
+@lru_cache(maxsize=1)
+def _shipping_mode_options() -> tuple:
+    from models.consumer_models.delay_model import load_bundle
+
+    scheduled = load_bundle()["lookups"]["scheduled_days"]
+    return tuple({"mode": m, "promised_days": d} for m, d in sorted(scheduled.items(), key=lambda kv: kv[1]))
+
+
+@prediction_bp.route("/options/destinations", methods=["GET"])
+def get_destinations():
+    """
+    Destination countries the delay model knows. `label` is English; `value` is
+    DataCo's original (Spanish) Order_Country. The consumer API accepts either.
+    """
+    try:
+        options = list(_destination_options())
+        return jsonify({"destinations": [o["label"] for o in options], "options": options,
+                        "granularity": "country"})
+    except FileNotFoundError as e:
+        return jsonify({"destinations": [], "warning": str(e)})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@prediction_bp.route("/options/shipping-modes", methods=["GET"])
+def get_shipping_modes():
+    try:
+        return jsonify({"shipping_modes": list(_shipping_mode_options())})
+    except FileNotFoundError as e:
+        return jsonify({"shipping_modes": [], "warning": str(e)})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 # ── Producer: demand insight ──────────────────────────────────────────────────
 
 @prediction_bp.route("/producer-overview", methods=["GET"])
@@ -242,16 +241,46 @@ def predict_demand():
 
 @prediction_bp.route("/consumer", methods=["POST"])
 def predict_consumer():
-    body    = request.get_json(silent=True) or {}
-    product = body.get("product","").strip()
-    pincode = body.get("pincode","").strip()
-    if not product or not pincode:
-        return jsonify({"error": "Both 'product' and 'pincode' are required."}), 400
+    """
+    Late-delivery prediction for a hypothetical NEW order.
+    Body: {"product": str, "destination": str (Order Country), "shipping_mode": str,
+           "quantity": int (optional, default 1), "order_datetime": ISO string (optional, default now)}
+    `destination` may be the English name or DataCo's original Spanish spelling.
+    """
+    body = request.get_json(silent=True) or {}
+    product = str(body.get("product", "")).strip()
+    destination = str(body.get("destination", "")).strip()
+    shipping_mode = str(body.get("shipping_mode", "")).strip()
+    if body.get("pincode") and not destination:
+        return jsonify({"error": "Prediction by pincode was removed: it returned the historical late-rate "
+                                 "average for that product and pincode, not a model prediction. Send "
+                                 "'destination' (order country) and 'shipping_mode' instead."}), 400
+    if not product or not destination or not shipping_mode:
+        return jsonify({"error": "'product', 'destination' and 'shipping_mode' are required."}), 400
+    try:
+        quantity = int(body.get("quantity", 1) or 1)
+        if quantity < 1:
+            raise ValueError
+    except (TypeError, ValueError):
+        return jsonify({"error": "'quantity' must be a positive integer."}), 400
+    order_dt = None
+    if body.get("order_datetime"):
+        try:
+            order_dt = datetime.fromisoformat(str(body["order_datetime"]))
+        except ValueError:
+            return jsonify({"error": "'order_datetime' must be ISO format, e.g. 2026-10-18T14:30"}), 400
     try:
         df = _get_dataset()
-        from models.consumer_models.consumer_insights import predict_for_product_pincode
-        result = predict_for_product_pincode(df, product, pincode)
-        result = _augment_shipping_reason_with_external_signals(result)
+        from models.consumer_models.consumer_insights import predict_new_order
+        result = predict_new_order(df, product, destination, shipping_mode,
+                                   quantity=quantity, order_datetime=order_dt,
+                                   customer_segment=body.get("customer_segment"),
+                                   payment_type=body.get("payment_type"))
+        result["external_signals"] = _external_signals(result["context"]["market"])
         return jsonify(result)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except FileNotFoundError as e:
+        return jsonify({"error": str(e)}), 503
     except Exception as e:
         return jsonify({"error": str(e)}), 500

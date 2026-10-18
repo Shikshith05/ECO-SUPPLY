@@ -5,66 +5,70 @@
     <meta name="viewport" content="width=device-width,initial-scale=1.0" />
     <title>epoch — Fleet Optimizer</title>
     <link rel="stylesheet" href="styles.css" />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
     <style>
       .eyebrow { color: #F0B86E; }
       .run-btn {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 46px;
-        padding: 0 18px;
-        border-radius: 14px;
+        display: inline-flex; align-items: center; justify-content: center;
+        min-height: 46px; padding: 0 18px; border-radius: 14px;
         border: 1px solid rgba(240, 184, 110, 0.35);
-        background:
-          linear-gradient(135deg, rgba(240, 184, 110, 0.18), rgba(240, 184, 110, 0.08)),
-          linear-gradient(135deg, #F0B86E, #E89A3C);
-        color: #07111D;
-        font-family: "DM Sans", sans-serif;
-        font-size: 13.5px;
-        font-weight: 600;
-        letter-spacing: 0.01em;
-        cursor: pointer;
-        box-shadow: 0 12px 28px rgba(8, 8, 14, 0.35), 0 0 0 1px rgba(240, 184, 110, 0.14) inset;
-        transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
-        white-space: nowrap;
+        background: linear-gradient(135deg, rgba(240, 184, 110, 0.18), rgba(240, 184, 110, 0.08)), linear-gradient(135deg, #F0B86E, #E89A3C);
+        color: #07111D; font-family: "DM Sans", sans-serif; font-size: 13.5px; font-weight: 600;
+        cursor: pointer; box-shadow: 0 12px 28px rgba(8, 8, 14, 0.35); white-space: nowrap;
+        transition: transform 0.18s ease, opacity 0.18s ease;
       }
-      .run-btn:hover:not(:disabled) {
-        transform: translateY(-1px);
-        box-shadow: 0 16px 30px rgba(8, 8, 14, 0.42), 0 0 18px rgba(240, 184, 110, 0.14);
-      }
-      .run-btn:active:not(:disabled) { transform: translateY(0); }
-      .run-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: none; }
+      .run-btn:hover:not(:disabled) { transform: translateY(-1px); }
+      .run-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
       .ghost-btn {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 46px;
-        padding: 0 18px;
-        border-radius: 14px;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        background: rgba(17, 17, 25, 0.72);
-        color: var(--text);
-        font-family: "DM Sans", sans-serif;
-        font-size: 13.5px;
-        font-weight: 500;
-        letter-spacing: 0.01em;
-        cursor: pointer;
-        box-shadow: 0 10px 20px rgba(8, 8, 14, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.04);
-        backdrop-filter: blur(10px);
-        transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+        display: inline-flex; align-items: center; justify-content: center;
+        min-height: 46px; padding: 0 18px; border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.08); background: rgba(17, 17, 25, 0.72);
+        color: var(--text); font-family: "DM Sans", sans-serif; font-size: 13.5px; font-weight: 500; cursor: pointer;
       }
-      .ghost-btn:hover { transform: translateY(-1px); border-color: rgba(122, 224, 184, 0.28); background: rgba(25, 25, 35, 0.92); }
-      .ghost-btn:active { transform: translateY(0); }
+      .ghost-btn:hover { border-color: rgba(240, 184, 110, 0.35); }
       .query-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 28px 30px; margin-bottom: 24px; }
-      .input-row { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 12px; align-items: end; }
-      @media (max-width: 900px) { .input-row { grid-template-columns: 1fr; } }
+      .grid-2 { display: grid; grid-template-columns: 1.3fr 1fr; gap: 18px; }
+      .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+      @media (max-width: 900px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+      .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
       .field label { font-size: 11px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+      .field small { color: var(--muted); font-size: 11.5px; }
       input, select { width: 100%; height: 42px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0 12px; color: var(--text); font-family: var(--font); font-size: 13px; }
-      textarea { width: 100%; min-height: 90px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; color: var(--text); font-family: var(--font); font-size: 13px; }
-      .weights-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
-      .weight-card { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; }
-      .result-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px; margin-top: 16px; }
-      .pill { display: inline-block; padding: 4px 8px; border-radius: 999px; background: rgba(240,184,110,.12); color: #F0B86E; font-size: 11px; text-transform: uppercase; letter-spacing: .12em; }
+      textarea { width: 100%; min-height: 190px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; color: var(--text); font-family: "DM Mono", monospace; font-size: 12.5px; }
+      .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+      .result-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px 22px; margin-top: 16px; }
+      .result-card h3 { font-family: "Syne", sans-serif; font-size: 15px; margin-bottom: 12px; }
+      .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+      @media (max-width: 900px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
+      .kpi { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; }
+      .kpi .label { font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+      .kpi .value { font-family: "Syne", sans-serif; font-size: 22px; font-weight: 700; color: #F0B86E; margin-top: 4px; }
+      .kpi .sub { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+      .pill { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+      .pill.road { background: rgba(122,224,184,.12); color: #7AE0B8; }
+      .pill.fallback { background: rgba(242,139,130,.14); color: #F28B82; }
+      table.t { width: 100%; border-collapse: collapse; font-size: 13px; }
+      table.t th, table.t td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+      table.t th { font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+      table.t td.num { font-family: "DM Mono", monospace; text-align: right; white-space: nowrap; }
+      .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: middle; }
+      #map { height: 460px; border-radius: var(--radius-sm); border: 1px solid var(--border); }
+      .notes { margin: 0; padding-left: 18px; color: var(--muted); font-size: 12.5px; line-height: 1.6; }
+      .estimate { color: var(--muted); font-size: 12px; margin-top: 8px; }
+      .stop-label { background: #111119; color: #fff; border: 1px solid rgba(255,255,255,.35); border-radius: 50%; width: 22px !important; height: 22px !important; line-height: 20px; text-align: center; font-size: 11px; font-weight: 600; }
+      .depot-label { background: #F0B86E; color: #07111D; border-radius: 6px; width: 26px !important; height: 26px !important; line-height: 26px; text-align: center; font-weight: 700; font-size: 12px; }
+      #toast { position: fixed; bottom: 24px; right: 24px; background: var(--surface2); border: 1px solid var(--border); padding: 12px 16px; border-radius: 10px; display: none; max-width: 420px; font-size: 13px; z-index: 2000; }
+      #toast.show { display: block; }
     </style>
   </head>
   <body>
@@ -81,97 +85,253 @@
         <a class="back-btn" href="/"><svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6"/></svg>Back</a>
         <header class="page-header">
           <p class="eyebrow">Fleet Optimizer</p>
-          <h1>Route planning, fuel cost, and CO₂-aware delivery optimization</h1>
-          <p>Blend greedy real-time estimates with a GA-based optimizer for the final route plan.</p>
+          <h1>Capacitated vehicle routing from a depot</h1>
+          <p>Every vehicle starts and ends at the depot and carries at most its capacity. Results are compared with greedy nearest-neighbour routes and with the stops in the order received, on the same distance matrix.</p>
         </header>
 
         <section class="query-card">
-          <h3>Input stops</h3>
-          <p>Enter one stop per line as address or lat,lng. The optimizer will distribute them across your vehicle fleet.</p>
-          <div class="input-row">
-            <div class="field"><label>Stops</label><textarea id="stopsInput" placeholder="12.9716,77.5946&#10;13.0055,77.5721">12.9716,77.5946
-13.0055,77.5721
-12.9784,77.6408</textarea></div>
-            <div class="field"><label>Vehicles</label><input id="vehicleCount" type="number" min="1" value="2" /></div>
-            <div class="field"><label>Mode</label><select id="modeSelect"><option value="ga">Full GA Optimization</option><option value="greedy">Quick Estimate</option></select></div>
-            <button class="run-btn" id="runBtn">Run Optimizer</button>
-          </div>
-          <div class="field" style="margin-top:14px;"><label>Cost weights</label></div>
-          <div class="weights-grid">
-            <div class="weight-card">α Distance <input id="alpha" type="range" min="0" max="1" step="0.05" value="0.35" /><span id="alphaOut">0.35</span></div>
-            <div class="weight-card">β Fuel <input id="beta" type="range" min="0" max="1" step="0.05" value="0.25" /><span id="betaOut">0.25</span></div>
-            <div class="weight-card">γ CO₂ <input id="gamma" type="range" min="0" max="1" step="0.05" value="0.20" /><span id="gammaOut">0.20</span></div>
-            <div class="weight-card">δ Delay <input id="delta" type="range" min="0" max="1" step="0.05" value="0.20" /><span id="deltaOut">0.20</span></div>
-          </div>
-          <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
-            <button class="ghost-btn" id="estimateBtn">Quick Estimate</button>
-            <span class="pill">Cost = α·distance + β·fuel + γ·CO₂ + δ·delay_risk</span>
+          <div class="grid-2">
+            <div>
+              <div class="field">
+                <label>Stops: one per line, <code>lat,lng[,demand[,label]]</code></label>
+                <textarea id="stopsInput">13.0055,77.5721,2,Malleshwaram
+12.9784,77.6408,1,Indiranagar
+12.9352,77.6245,3,Koramangala
+12.9141,77.6101,1,BTM Layout
+13.0358,77.5970,2,Hebbal
+12.9698,77.7500,2,Whitefield
+12.9250,77.5938,1,Jayanagar
+12.9081,77.6476,2,HSR Layout</textarea>
+                <small>Demand defaults to 1. Points outside the cached Bangalore road graph switch the request to straight-line × detour-factor distances.</small>
+              </div>
+              <div class="actions">
+                <button class="ghost-btn" id="randomBtn" type="button">Random Bangalore stops</button>
+              </div>
+            </div>
+            <div>
+              <div class="field">
+                <label>Depot (lat,lng)</label>
+                <input id="depotInput" value="12.9716,77.5946" placeholder="blank = first stop is the depot" />
+              </div>
+              <div class="grid-3">
+                <div class="field"><label>Vehicles</label><input id="vehicleCount" type="number" min="1" max="20" value="2" /></div>
+                <div class="field"><label>Capacity</label><input id="capacity" type="number" min="1" placeholder="auto" /></div>
+                <div class="field"><label>Time limit (s)</label><input id="timeLimit" type="number" min="1" max="30" value="5" /></div>
+              </div>
+              <div class="field">
+                <label>Solver</label>
+                <select id="solverSelect">
+                  <option value="ga">Genetic algorithm (giant tour + split, OX, 2-opt/relocate)</option>
+                  <option value="ortools">OR-Tools (guided local search), reference</option>
+                  <option value="greedy">Greedy nearest neighbour (instant)</option>
+                </select>
+                <small>Capacity "auto" = ceil(total demand / vehicles).</small>
+              </div>
+              <div class="actions">
+                <button class="run-btn" id="runBtn" type="button">Optimize routes</button>
+                <button class="ghost-btn" id="estimateBtn" type="button">Quick estimate (greedy)</button>
+              </div>
+            </div>
           </div>
         </section>
 
         <section id="results" style="display:none;">
-          <div class="result-card"><h3>Route summary</h3><div id="summary"></div></div>
-          <div class="result-card"><h3>Routes</h3><ol id="routesList"></ol></div>
+          <div class="result-card">
+            <h3>Summary <span id="modePill" class="pill"></span></h3>
+            <div class="kpis" id="kpis"></div>
+            <p class="estimate" id="modeReason"></p>
+          </div>
+
+          <div class="result-card">
+            <h3>Map</h3>
+            <div id="map"></div>
+            <p class="estimate" id="mapNote"></p>
+          </div>
+
+          <div class="result-card">
+            <h3>Comparison on the same distance matrix</h3>
+            <table class="t">
+              <thead><tr><th>Plan</th><th style="text-align:right">Distance (km)</th><th style="text-align:right">Vehicles used</th><th style="text-align:right">Fuel, L (est.)</th><th style="text-align:right">CO₂, kg (est.)</th><th style="text-align:right">Selected plan saves</th></tr></thead>
+              <tbody id="cmpBody"></tbody>
+            </table>
+            <p class="estimate" id="estimateBasis"></p>
+          </div>
+
+          <div class="result-card">
+            <h3>Routes per vehicle</h3>
+            <table class="t">
+              <thead><tr><th>Vehicle</th><th>Sequence (depot → … → depot)</th><th style="text-align:right">Load / capacity</th><th style="text-align:right">Distance (km)</th></tr></thead>
+              <tbody id="routesBody"></tbody>
+            </table>
+          </div>
+
+          <div class="result-card">
+            <h3>Notes</h3>
+            <ul class="notes" id="notes"></ul>
+          </div>
         </section>
       </main>
     </div>
+    <div id="toast"></div>
 
     <script>
-      const weights = ['alpha','beta','gamma','delta'];
-      weights.forEach(k => {
-        const input = document.getElementById(k);
-        const out = document.getElementById(k + 'Out');
-        const update = () => out.textContent = Number(input.value).toFixed(2);
-        input.addEventListener('input', update);
-        update();
-      });
+      const COLORS = ["#F0B86E", "#7AE0B8", "#8AB4F8", "#F28B82", "#C58AF9", "#FDD663", "#78D9EC", "#FF8BCB"];
+      let map = null;
+      let layer = null;
+
+      function toast(msg) {
+        const t = document.getElementById("toast");
+        t.textContent = msg;
+        t.className = "show";
+        setTimeout(() => (t.className = ""), 5000);
+      }
+      function esc(s) {
+        return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+      }
+      const num = (v, d = 2) => (v == null ? "—" : Number(v).toFixed(d));
 
       function parseStops(text) {
-        return text.split(/\n+/).map(line => line.trim()).filter(Boolean).map(line => {
-          const [lat, lng] = line.split(',').map(Number);
-          return { lat, lng, order_id: line };
-        }).filter(x => Number.isFinite(x.lat) && Number.isFinite(x.lng));
-      }
-
-      function renderResult(result) {
-        document.getElementById('results').style.display = 'block';
-        const summary = result.summary || {};
-        const cmp = result.comparison || {};
-        document.getElementById('summary').innerHTML = `
-          <p><strong>Solver:</strong> ${result.solver ?? '—'}</p>
-          <p><strong>Total distance:</strong> ${summary.distance_km ?? 0} km (${result.distance_mode ?? '—'})</p>
-          <p><strong>Vehicles used:</strong> ${summary.vehicles_used ?? 0} of ${summary.vehicle_count ?? 0}</p>
-          <p><strong>Saved vs greedy:</strong> ${cmp.saved_vs_greedy_km ?? 0} km (${cmp.saved_vs_greedy_pct ?? 0}%)
-             · <strong>vs order as received:</strong> ${cmp.saved_vs_order_as_received_km ?? 0} km (${cmp.saved_vs_order_as_received_pct ?? 0}%)</p>
-          <p><strong>Fuel (estimate):</strong> ${summary.fuel_litres_est ?? 0} L · <strong>CO₂ (estimate):</strong> ${summary.co2_kg_est ?? 0} kg</p>
-          <p style="color:var(--muted);font-size:12px">${summary.estimate_basis ?? ''}</p>`;
-        const list = document.getElementById('routesList');
-        list.innerHTML = '';
-        (result.routes || []).forEach((route, idx) => {
-          const li = document.createElement('li');
-          li.innerHTML = `<strong>Vehicle ${route.vehicle || idx + 1}</strong><br/>${(route.stops || []).map(stop => stop.order_id || `${stop.lat},${stop.lng}`).join(' → ')}`;
-          list.appendChild(li);
+        const stops = [];
+        text.split(/\n+/).map((l) => l.trim()).filter(Boolean).forEach((line, i) => {
+          const parts = line.split(",").map((p) => p.trim());
+          const lat = Number(parts[0]);
+          const lng = Number(parts[1]);
+          if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+          const stop = { lat, lng, order_id: parts[3] || `S${i + 1}` };
+          if (parts[2]) stop.demand = Number(parts[2]);
+          stops.push(stop);
         });
+        return stops;
       }
 
-      async function callEndpoint(path, body) {
-        const res = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-        const data = await res.json();
-        if (data && data.status === 'ok') {
-          renderResult(data.data);
-        } else {
-          alert(data.message || 'Request failed');
+      function buildPayload() {
+        const payload = {
+          stops: parseStops(document.getElementById("stopsInput").value),
+          vehicle_count: Number(document.getElementById("vehicleCount").value || 1),
+          time_limit_s: Number(document.getElementById("timeLimit").value || 5),
+        };
+        const depot = document.getElementById("depotInput").value.trim();
+        if (depot) {
+          const [lat, lng] = depot.split(",").map(Number);
+          payload.depot = { lat, lng, order_id: "Depot" };
+        }
+        const cap = document.getElementById("capacity").value;
+        if (cap) payload.capacity = Number(cap);
+        return payload;
+      }
+
+      async function run(path) {
+        const runBtn = document.getElementById("runBtn");
+        const estBtn = document.getElementById("estimateBtn");
+        runBtn.disabled = estBtn.disabled = true;
+        runBtn.textContent = "Optimizing…";
+        try {
+          const res = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(buildPayload()) });
+          const data = await res.json();
+          if (data.status !== "ok") throw new Error(data.message || "Request failed");
+          render(data.data);
+        } catch (e) {
+          toast(e.message);
+        } finally {
+          runBtn.disabled = estBtn.disabled = false;
+          runBtn.textContent = "Optimize routes";
         }
       }
 
-      document.getElementById('runBtn').addEventListener('click', () => {
-        const stops = parseStops(document.getElementById('stopsInput').value);
-        callEndpoint('/api/route/optimize', { stops, vehicle_count: Number(document.getElementById('vehicleCount').value || 1), weights: { alpha: Number(document.getElementById('alpha').value), beta: Number(document.getElementById('beta').value), gamma: Number(document.getElementById('gamma').value), delta: Number(document.getElementById('delta').value) } });
-      });
+      function render(r) {
+        document.getElementById("results").style.display = "block";
+        const s = r.summary || {};
+        const c = r.comparison || {};
+        const solverName = { ga: "Genetic algorithm", ortools: "OR-Tools", greedy: "Greedy" }[r.solver] || r.solver;
 
-      document.getElementById('estimateBtn').addEventListener('click', () => {
-        const stops = parseStops(document.getElementById('stopsInput').value);
-        callEndpoint('/api/route/estimate', { stops, vehicle_count: Number(document.getElementById('vehicleCount').value || 1), weights: { alpha: Number(document.getElementById('alpha').value), beta: Number(document.getElementById('beta').value), gamma: Number(document.getElementById('gamma').value), delta: Number(document.getElementById('delta').value) } });
+        const pill = document.getElementById("modePill");
+        const road = r.distance_mode === "road_network";
+        pill.className = `pill ${road ? "road" : "fallback"}`;
+        pill.textContent = road ? "road-network distances" : "straight-line × detour factor";
+        document.getElementById("modeReason").textContent = road
+          ? `Shortest paths on the cached OSM drive graph (farthest stop snapped ${num(r.max_snap_km, 3)} km to the nearest road node).`
+          : `Fallback: ${r.distance_mode_reason || ""} Factor ${r.detour_factor} = measured median road/straight-line ratio.`;
+
+        document.getElementById("kpis").innerHTML = `
+          <div class="kpi"><div class="label">${esc(solverName)} distance</div><div class="value">${num(s.distance_km)} km</div><div class="sub">${s.stops} stops, runtime ${num(s.runtime_s)} s</div></div>
+          <div class="kpi"><div class="label">Vehicles used</div><div class="value">${s.vehicles_used} / ${s.vehicle_count}</div><div class="sub">capacity ${s.capacity} each (${s.capacity_source === "request" ? "given" : "auto"})</div></div>
+          <div class="kpi"><div class="label">Saved vs greedy</div><div class="value">${num(c.saved_vs_greedy_pct)}%</div><div class="sub">${num(c.saved_vs_greedy_km)} km</div></div>
+          <div class="kpi"><div class="label">Saved vs order received</div><div class="value">${num(c.saved_vs_order_as_received_pct)}%</div><div class="sub">${num(c.saved_vs_order_as_received_km)} km</div></div>`;
+
+        const perKm = s.distance_km > 0 ? s.fuel_litres_est / s.distance_km : 0;
+        const co2PerKm = s.distance_km > 0 ? s.co2_kg_est / s.distance_km : 0;
+        const row = (label, km, veh, saved, bold) => `
+          <tr${bold ? ' style="font-weight:600"' : ""}><td>${label}</td><td class="num">${num(km)}</td><td class="num">${veh}</td>
+          <td class="num">${num(km * perKm)}</td><td class="num">${num(km * co2PerKm)}</td><td class="num">${saved}</td></tr>`;
+        document.getElementById("cmpBody").innerHTML =
+          row(`${esc(solverName)} (selected)`, s.distance_km, s.vehicles_used, "—", true) +
+          row("Greedy nearest neighbour", c.greedy.distance_km, c.greedy.vehicles_used + (c.greedy.fleet_feasible ? "" : " ⚠"), `${num(c.saved_vs_greedy_km)} km (${num(c.saved_vs_greedy_pct)}%)`) +
+          row("Order as received", c.order_as_received.distance_km, c.order_as_received.vehicles_used + (c.order_as_received.fleet_feasible ? "" : " ⚠"), `${num(c.saved_vs_order_as_received_km)} km (${num(c.saved_vs_order_as_received_pct)}%)`);
+        document.getElementById("estimateBasis").textContent =
+          `${s.estimate_basis || ""} Because fuel and CO₂ are proportional to distance, their % savings equal the distance % savings. ⚠ = needed more vehicles than available.`;
+
+        const depotLabel = (r.depot && r.depot.order_id) || "Depot";
+        document.getElementById("routesBody").innerHTML = (r.routes || [])
+          .map((route, i) => `<tr><td><span class="swatch" style="background:${COLORS[i % COLORS.length]}"></span>Vehicle ${route.vehicle}</td>
+            <td>${esc(depotLabel)} → ${route.stops.map((st) => esc(st.order_id || `${st.lat},${st.lng}`)).join(" → ")} → ${esc(depotLabel)}</td>
+            <td class="num">${route.load} / ${route.capacity}</td><td class="num">${num(route.distance_km)}</td></tr>`)
+          .join("");
+
+        document.getElementById("notes").innerHTML = (r.notes || []).map((n) => `<li>${esc(n)}</li>`).join("") || "<li>None.</li>";
+        drawMap(r);
+      }
+
+      function drawMap(r) {
+        const note = document.getElementById("mapNote");
+        if (typeof L === "undefined") {
+          note.textContent = "Map library could not be loaded (offline?). Routes are listed below.";
+          return;
+        }
+        if (!map) {
+          map = L.map("map");
+          L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            maxZoom: 19,
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+          }).addTo(map);
+        }
+        if (layer) layer.remove();
+        layer = L.featureGroup().addTo(map);
+        (r.routes || []).forEach((route, i) => {
+          const color = COLORS[i % COLORS.length];
+          if (route.path && route.path.length > 1) {
+            L.polyline(route.path, { color, weight: 4, opacity: 0.85 }).bindTooltip(`Vehicle ${route.vehicle}: ${num(route.distance_km)} km`).addTo(layer);
+          }
+          route.stops.forEach((st, k) => {
+            L.marker([st.lat, st.lng], { icon: L.divIcon({ className: "stop-label", html: String(k + 1), iconSize: [22, 22] }) })
+              .bindTooltip(`${esc(st.order_id || "")} · vehicle ${route.vehicle}, stop ${k + 1}, demand ${st.demand ?? 1}`)
+              .addTo(layer);
+          });
+        });
+        if (r.depot) {
+          L.marker([r.depot.lat, r.depot.lng], { icon: L.divIcon({ className: "depot-label", html: "D", iconSize: [26, 26] }) })
+            .bindTooltip("Depot").addTo(layer);
+        }
+        if (layer.getLayers().length) map.fitBounds(layer.getBounds(), { padding: [24, 24] });
+        setTimeout(() => map.invalidateSize(), 50);
+        note.textContent = r.distance_mode === "road_network"
+          ? "Lines follow the shortest road paths used for the distances."
+          : "Straight lines: road paths are only drawn when road-network distances are used.";
+      }
+
+      document.getElementById("runBtn").addEventListener("click", () => {
+        const solver = document.getElementById("solverSelect").value;
+        run(`/api/route/optimize?solver=${encodeURIComponent(solver)}`);
+      });
+      document.getElementById("estimateBtn").addEventListener("click", () => run("/api/route/estimate"));
+      document.getElementById("randomBtn").addEventListener("click", () => {
+        const n = 15;
+        const lines = [];
+        for (let i = 0; i < n; i++) {
+          const lat = (12.88 + Math.random() * 0.18).toFixed(5);
+          const lng = (77.50 + Math.random() * 0.22).toFixed(5);
+          lines.push(`${lat},${lng},${1 + Math.floor(Math.random() * 5)},R${i + 1}`);
+        }
+        document.getElementById("stopsInput").value = lines.join("\n");
       });
     </script>
   </body>

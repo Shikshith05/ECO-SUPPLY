@@ -16,6 +16,9 @@ def add_shipping_delay_feature(df: pd.DataFrame) -> pd.DataFrame:
     """
     Compute actual vs scheduled shipping gap.
     Positive = late, Negative = early, 0 = on time.
+
+    Descriptive analytics only: this is known after delivery, so it must never
+    feed a predictive model (it is in delay_model.BANNED_COLUMNS).
     """
     if "Days_for_shipping_real" in df.columns and "Days_for_shipment_scheduled" in df.columns:
         df["shipping_delay_gap"] = (
@@ -41,20 +44,24 @@ def add_discount_impact_feature(df: pd.DataFrame) -> pd.DataFrame:
 
 def add_demand_score(df: pd.DataFrame) -> pd.Series:
     """
-    Composite demand score (0–1) per row based on Sales, Quantity, Profit.
-    Used by demand_clustering.py as input features before clustering.
-    Replace with model's own feature set once training is complete.
+    Rule-based composite score (0–1) per row: a weighted sum of min-max
+    normalised sales, quantity, profit and on-time rate. Weights come from
+    config.yaml (model.demand_score_weights). Used only as a descriptive
+    ranking aid in the producer overview; it is not a trained model.
     """
+    from backend.config import load_config
+
+    w = (load_config().get("model") or {}).get("demand_score_weights") or {}
     sales_norm  = normalise_0_1(numeric_column(df, "Sales"))
     qty_norm    = normalise_0_1(numeric_column(df, "Order_Item_Quantity"))
     profit_norm = normalise_0_1(numeric_column(df, "Order_Profit_Per_Order"))
     risk_inv    = 1 - normalise_0_1(numeric_column(df, "Late_delivery_risk"))
 
     score = (
-        sales_norm  * 0.40 +
-        qty_norm    * 0.30 +
-        profit_norm * 0.20 +
-        risk_inv    * 0.10
+        sales_norm  * float(w["sales"]) +
+        qty_norm    * float(w["quantity"]) +
+        profit_norm * float(w["profit"]) +
+        risk_inv    * float(w["risk_inv"])
     )
     return score.rename("demand_score")
 
@@ -76,13 +83,4 @@ def build_producer_features(df: pd.DataFrame) -> pd.DataFrame:
     df = add_discount_impact_feature(df)
     df = add_temporal_features(df)
     df["demand_score"] = add_demand_score(df)
-    return df
-
-
-def build_consumer_features(df: pd.DataFrame) -> pd.DataFrame:
-    """Full feature pipeline for the three consumer-side models."""
-    df = add_shipping_delay_feature(df)
-    df = add_profit_margin_feature(df)
-    df = add_discount_impact_feature(df)
-    df = add_temporal_features(df)
     return df

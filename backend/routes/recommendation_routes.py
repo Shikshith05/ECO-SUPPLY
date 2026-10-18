@@ -2,12 +2,13 @@
 epoch/backend/routes/recommendation_routes.py
 ----------------------------------------------
 Endpoints:
-  POST /api/recommend/shipping      → Consumer: best shipping mode recommendation
+  POST /api/recommend/shipping      → CSV of orders → late-delivery probability per shipping mode (what-if)
   GET  /api/recommend/weather       → Weather context for supply decisions
   GET  /api/recommend/news          → News signals affecting supply chain
 """
 
 import os
+import tempfile
 from flask import Blueprint, request, jsonify
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -21,27 +22,36 @@ recommendation_bp = Blueprint("recommendation", __name__)
 @recommendation_bp.route("/shipping", methods=["POST"])
 def recommend_shipping():
     """
-    Accepts a CSV upload, recommends optimal shipping mode per order.
-    Model: shipping_recommendation.py
+    Accepts a CSV of orders (DataCo columns) and returns, per order, the
+    late-delivery model's probability under each shipping mode.
+    Model: shipping_recommendation.py (what-if over the trained delay model).
+
+    The upload is parsed from a temporary file that is deleted afterwards: it
+    is never written under data/ (where it could be mistaken for the dataset)
+    and the client-supplied filename is never used as a path.
     """
     if "file" not in request.files:
         return jsonify({"error": "No file provided"}), 400
     f = request.files["file"]
-    if not f.filename.endswith(".csv"):
+    if not f.filename or not f.filename.lower().endswith(".csv"):
         return jsonify({"error": "Only CSV files are accepted"}), 400
 
-    from flask import current_app
-    upload_dir = current_app.config["UPLOAD_FOLDER"]
-    filepath = os.path.join(upload_dir, f.filename)
-    f.save(filepath)
-
+    tmp = tempfile.NamedTemporaryFile(suffix=".csv", delete=False)
     try:
+        f.save(tmp)
+        tmp.close()
         from models.consumer_models.shipping_recommendation import run_shipping_recommendation
-        df = load_and_clean_csv(filepath)
-        result = run_shipping_recommendation(df)
-        return jsonify(result)
+        df = load_and_clean_csv(tmp.name)
+        return jsonify(run_shipping_recommendation(df))
+    except FileNotFoundError as e:
+        return jsonify({"error": str(e)}), 503
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    finally:
+        tmp.close()
+        os.unlink(tmp.name)
 
 
 # ── Weather Context ────────────────────────────────────────────────────────────
