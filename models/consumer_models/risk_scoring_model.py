@@ -18,7 +18,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 sys.path.insert(0, ROOT)
 
 from backend.utils.feature_engineering import build_consumer_features
-from backend.utils.preprocessing import normalise_0_1
+from backend.utils.preprocessing import normalise_0_1, numeric_column
 
 MODEL_PATH = os.path.join(ROOT, "saved_models", "risk_model.pkl")
 
@@ -46,9 +46,9 @@ def _score_risk(df: pd.DataFrame) -> pd.DataFrame:
         df["risk_score"] = scores
     """
     # Stub: composite risk from late delivery risk + discount + delay gap
-    late   = normalise_0_1(pd.to_numeric(df.get("Late_delivery_risk",     0), errors="coerce").fillna(0))
-    disc   = normalise_0_1(pd.to_numeric(df.get("Order_Item_Discount_Rate",0), errors="coerce").fillna(0))
-    gap    = normalise_0_1(pd.to_numeric(df.get("shipping_delay_gap",     0), errors="coerce").fillna(0).clip(0))
+    late   = normalise_0_1(numeric_column(df, "Late_delivery_risk"))
+    disc   = normalise_0_1(numeric_column(df, "Order_Item_Discount_Rate"))
+    gap    = normalise_0_1(numeric_column(df, "shipping_delay_gap").clip(lower=0))
 
     df["risk_score"] = ((late * 0.50 + disc * 0.20 + gap * 0.30) * 100).round(1)
 

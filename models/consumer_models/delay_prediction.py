@@ -18,6 +18,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 sys.path.insert(0, ROOT)
 
 from backend.utils.feature_engineering import build_consumer_features
+from backend.utils.preprocessing import numeric_column
 
 MODEL_PATH = os.path.join(ROOT, "saved_models", "delay_model.pkl")
 
@@ -51,7 +52,7 @@ def _predict_delay(df: pd.DataFrame) -> pd.DataFrame:
         df["predicted_delay"]   = (df["shipping_delay_gap"] > 0).astype(int)
         df["delay_confidence"]  = df["shipping_delay_gap"].clip(0, 10) / 10.0
     else:
-        df["predicted_delay"]   = df.get("Late_delivery_risk", pd.Series([0]*len(df))).astype(int)
+        df["predicted_delay"]   = numeric_column(df, "Late_delivery_risk").astype(int)
         df["delay_confidence"]  = df["predicted_delay"].astype(float)
     return df
 

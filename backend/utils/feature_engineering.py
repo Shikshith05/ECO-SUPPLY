@@ -9,6 +9,8 @@ and returns a DataFrame with additional engineered columns.
 import pandas as pd
 import numpy as np
 
+from backend.utils.preprocessing import normalise_0_1, numeric_column
+
 
 def add_shipping_delay_feature(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -43,17 +45,10 @@ def add_demand_score(df: pd.DataFrame) -> pd.Series:
     Used by demand_clustering.py as input features before clustering.
     Replace with model's own feature set once training is complete.
     """
-    from utils.preprocessing import normalise_0_1
-
-    sales = pd.to_numeric(df["Sales"], errors="coerce") if "Sales" in df.columns else pd.Series(0.0, index=df.index)
-    qty = pd.to_numeric(df["Order_Item_Quantity"], errors="coerce") if "Order_Item_Quantity" in df.columns else pd.Series(0.0, index=df.index)
-    profit = pd.to_numeric(df["Order_Profit_Per_Order"], errors="coerce") if "Order_Profit_Per_Order" in df.columns else pd.Series(0.0, index=df.index)
-    risk = pd.to_numeric(df["Late_delivery_risk"], errors="coerce") if "Late_delivery_risk" in df.columns else pd.Series(0.0, index=df.index)
-
-    sales_norm  = normalise_0_1(sales.fillna(0))
-    qty_norm    = normalise_0_1(qty.fillna(0))
-    profit_norm = normalise_0_1(profit.fillna(0))
-    risk_inv    = 1 - normalise_0_1(risk.fillna(0))
+    sales_norm  = normalise_0_1(numeric_column(df, "Sales"))
+    qty_norm    = normalise_0_1(numeric_column(df, "Order_Item_Quantity"))
+    profit_norm = normalise_0_1(numeric_column(df, "Order_Profit_Per_Order"))
+    risk_inv    = 1 - normalise_0_1(numeric_column(df, "Late_delivery_risk"))
 
     score = (
         sales_norm  * 0.40 +
@@ -76,21 +71,9 @@ def add_temporal_features(df: pd.DataFrame) -> pd.DataFrame:
 
 def add_route_features(df: pd.DataFrame) -> pd.DataFrame:
     """Add shared route-planning features for new Fleet Optimizer models."""
-    distance_km = (
-        pd.to_numeric(df["distance_km"], errors="coerce").fillna(0)
-        if "distance_km" in df.columns
-        else pd.Series(0.0, index=df.index)
-    )
-    load_kg = (
-        pd.to_numeric(df["vehicle_load_kg"], errors="coerce").fillna(40)
-        if "vehicle_load_kg" in df.columns
-        else pd.Series(40.0, index=df.index)
-    )
-    speed_kph = (
-        pd.to_numeric(df["road_segment_speed_kph"], errors="coerce").fillna(35)
-        if "road_segment_speed_kph" in df.columns
-        else pd.Series(35.0, index=df.index)
-    )
+    distance_km = numeric_column(df, "distance_km", 0.0)
+    load_kg = numeric_column(df, "vehicle_load_kg", 40.0)
+    speed_kph = numeric_column(df, "road_segment_speed_kph", 35.0)
 
     df["road_segment_speed_kph"] = speed_kph
     df["estimated_travel_time_min"] = (distance_km / speed_kph.replace(0, np.nan) * 60).fillna(0)

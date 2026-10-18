@@ -10,11 +10,11 @@ dist/
 build/
 .eggs/
 
-# Virtual environments
+# Virtual environment (single env, created by setup_env.py)
+.venv/
+# legacy env folders from older setups
 venv/
 env/
-.venv/
-.env/
 
 # Environment variables
 .env
@@ -37,12 +37,14 @@ uploads/
 # Trained models (large binary files — use Git LFS or cloud storage)
 saved_models/*.pkl
 saved_models/*.joblib
-saved_models/*.joblib
 saved_models/*.h5
 saved_models/*.pt
 
-# Config with secrets
+# Config with secrets (setup_env.py copies config.yaml.example -> config.yaml)
 config/config.yaml
+
+# OSMnx HTTP cache
+cache/
 
 # OS
 .DS_Store

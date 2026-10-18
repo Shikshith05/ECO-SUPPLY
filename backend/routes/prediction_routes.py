@@ -14,7 +14,6 @@ import sys
 from flask import Blueprint, request, jsonify
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.insert(0, ROOT)
 
 prediction_bp = Blueprint("prediction", __name__)
 
@@ -49,7 +48,7 @@ def _augment_shipping_reason_with_external_signals(result: dict) -> dict:
 
     # Weather factor
     try:
-        from services.weather_service import fetch_weather
+        from backend.services.weather_service import fetch_weather
 
         weather_payload = fetch_weather(region=market)
         weather_items = ((weather_payload or {}).get("weather") or {}).get(market, [])
@@ -71,7 +70,7 @@ def _augment_shipping_reason_with_external_signals(result: dict) -> dict:
 
     # News / war-conflict factor
     try:
-        from services.news_service import fetch_news
+        from backend.services.news_service import fetch_news
 
         news_payload = fetch_news(market=market)
         articles = (news_payload or {}).get("articles") or []

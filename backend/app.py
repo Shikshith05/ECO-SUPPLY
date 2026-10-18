@@ -3,23 +3,29 @@ epoch/backend/app.py
 --------------------
 Main Flask application entry point.
 Registers all route blueprints and serves the frontend.
+
+Run from the repo root with `python backend/app.py` (or `python start_app.py`).
+All imports are package-absolute from the repo root (backend.*, models.*).
 """
 
 import os
-import yaml
+import sys
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if BASE_DIR not in sys.path:
+    # When started as `python backend/app.py`, sys.path[0] is backend/, not the repo root.
+    sys.path.insert(0, BASE_DIR)
+
 from flask import Flask, send_from_directory
 from flask_cors import CORS
 
-from routes.prediction_routes import prediction_bp
-from routes.recommendation_routes import recommendation_bp
-from routes.routing_routes import routing_bp
+from backend.config import load_config
+from backend.routes.prediction_routes import prediction_bp
+from backend.routes.recommendation_routes import recommendation_bp
+from backend.routes.routing_routes import routing_bp
 
-# ── Load config ───────────────────────────────────────────────────────────────
-BASE_DIR   = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CONFIG_PATH = os.path.join(BASE_DIR, "config", "config.yaml")
-
-with open(CONFIG_PATH, "r") as f:
-    config = yaml.safe_load(f)
+# ── Load config (falls back to config.yaml.example on a fresh clone) ─────────
+config = load_config()
 
 # ── App setup ─────────────────────────────────────────────────────────────────
 FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")

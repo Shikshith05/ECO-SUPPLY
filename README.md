@@ -4,10 +4,13 @@ ML-powered supply chain analytics with demand zone insights for producers and de
 
 ## Quick Start
 
-1. `python setup_env.py`   — creates venv and installs all dependencies
-2. `python start_app.py`   — starts the server and opens the browser
+Requires **Python 3.11** (the pinned pandas/numpy/scikit-learn have no 3.13 wheels).
 
-No other setup should be needed for a fresh clone.
+1. `python setup_env.py`   — creates `.venv` with Python 3.11, installs requirements, copies `config/config.yaml.example` to `config/config.yaml`
+2. `python start_app.py`   — starts the server from `.venv` and opens the browser
+3. `.venv\Scripts\python -m pytest` — runs the test suite (no network access needed)
+
+If an older `.venv` was created with another Python version, run `python setup_env.py --recreate`.
 
 ## AI Handoff Context
 
@@ -73,8 +76,7 @@ epoch/
 ### 1. Install dependencies
 
 ```bash
-cd epoch
-pip install -r requirements.txt
+python setup_env.py
 ```
 
 ### 2. Place your dataset
@@ -83,7 +85,7 @@ Drop your supply chain CSV into `data/processed/` (preferred) or `data/raw/`. Th
 
 ### 3. Configure API keys (optional)
 
-Edit `config/config.yaml`:
+Edit `config/config.yaml` (created by `setup_env.py`; if it is missing the app falls back to `config/config.yaml.example`):
 
 ```yaml
 apis:
@@ -96,8 +98,7 @@ Without keys, weather and news services fall back to realistic mock data automat
 ### 4. Run the backend
 
 ```bash
-cd backend
-python app.py
+python start_app.py          # or: .venv\Scripts\python backend/app.py
 ```
 
 Open http://localhost:5000
