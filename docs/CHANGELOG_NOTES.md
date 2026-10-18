@@ -134,3 +134,37 @@ asymmetric matrix. A 3×3 synthetic road grid with a one-way row exercises road
 mode offline. Plus the 2-vs-1-vehicle sanity check, input validation (400s),
 and API smoke tests. `deap` was removed from requirements because nothing used
 it.
+
+## Task 3 — Honest metrics
+
+**The fake 8 %.** The old service set `baseline = result * 1.08` and reported
+the difference as "CO2 saved", so every request claimed about 8 % savings
+whatever the routes looked like. That is gone. Savings are now measured
+against two real baselines, computed in the same request on the **same
+distance matrix**:
+- **greedy nearest neighbour**, the obvious heuristic a dispatcher would use;
+- **order as received**, stops loaded in input order, a new vehicle whenever
+  capacity runs out. This is what happens with no optimisation at all.
+
+The response's `comparison` block reports both baselines' km and vehicle
+counts, plus the km and % saved against each. Greedy compared with itself
+shows 0. The savings can be small or zero on easy instances, and the API says
+so instead of inventing a number. Example request (5 stops, 2 vehicles, road
+distances): the GA saved 0.19 % vs greedy and 28.8 % vs order-as-received.
+
+**Fuel and CO2 are labelled estimates.** `fuel_litres = km × 0.08 L/km` and
+`co2_kg = litres × 2.31 kg/L`. 2.31 kg CO2 per litre is the standard
+combustion factor for petrol; 0.08 L/km is an assumed small petrol van. Both
+live in `config.yaml` (routing section) and the response carries an
+`estimate_basis` string saying they are estimates, not measurements. Fuel cost
+is shown only if `fuel_price_per_litre` is configured, because any default
+price would be made up. Because both estimates are linear in distance, "% CO2
+saved" always equals "% distance saved"; the CO2 number adds no independent
+information, and I would say so if asked.
+
+**Removed things that pretended to be ML.** `RouteDelayModel` and
+`RouteFuelModel` were hand-written formulas wrapped in classes that would load
+a `.pkl` that never existed. Both files are deleted. So is
+`add_route_features()` in `feature_engineering.py`, a made-up fuel-burn
+formula applied to columns that do not exist in the dataset (always 0). The
+α/β/γ/δ weighted cost is no longer used (see Task 2).

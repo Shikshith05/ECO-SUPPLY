@@ -69,26 +69,12 @@ def add_temporal_features(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def add_route_features(df: pd.DataFrame) -> pd.DataFrame:
-    """Add shared route-planning features for new Fleet Optimizer models."""
-    distance_km = numeric_column(df, "distance_km", 0.0)
-    load_kg = numeric_column(df, "vehicle_load_kg", 40.0)
-    speed_kph = numeric_column(df, "road_segment_speed_kph", 35.0)
-
-    df["road_segment_speed_kph"] = speed_kph
-    df["estimated_travel_time_min"] = (distance_km / speed_kph.replace(0, np.nan) * 60).fillna(0)
-    df["fuel_burn_rate_l_per_km"] = 0.08 + 0.003 * (load_kg / 40.0)
-    df["estimated_fuel_liters"] = distance_km * df["fuel_burn_rate_l_per_km"]
-    return df
-
-
 def build_producer_features(df: pd.DataFrame) -> pd.DataFrame:
     """Full feature pipeline for the producer-side demand clustering model."""
     df = add_shipping_delay_feature(df)
     df = add_profit_margin_feature(df)
     df = add_discount_impact_feature(df)
     df = add_temporal_features(df)
-    df = add_route_features(df)
     df["demand_score"] = add_demand_score(df)
     return df
 
@@ -99,5 +85,4 @@ def build_consumer_features(df: pd.DataFrame) -> pd.DataFrame:
     df = add_profit_margin_feature(df)
     df = add_discount_impact_feature(df)
     df = add_temporal_features(df)
-    df = add_route_features(df)
     return df

@@ -191,3 +191,32 @@ def test_far_away_stop_falls_back_to_haversine(monkeypatch):
     out = route_optimizer.plan_routes({"stops": stops}, solver="greedy")
     assert out["distance_mode"] == "haversine_x_detour"
     assert "coverage" in out["distance_mode_reason"]
+
+
+# ── honest metrics (Task 3) ───────────────────────────────────────────────────
+
+def test_savings_are_measured_against_real_baselines():
+    out = route_optimizer.plan_routes({"stops": STOPS, "vehicle_count": 2, "time_limit_s": 1}, solver="ortools")
+    cmp = out["comparison"]
+    dist = out["summary"]["distance_km"]
+    assert cmp["saved_vs_greedy_km"] == pytest.approx(cmp["greedy"]["distance_km"] - dist, abs=1e-3)
+    assert cmp["saved_vs_order_as_received_km"] == pytest.approx(
+        cmp["order_as_received"]["distance_km"] - dist, abs=1e-3)
+    assert cmp["saved_vs_greedy_pct"] == pytest.approx(
+        100 * (cmp["greedy"]["distance_km"] - dist) / cmp["greedy"]["distance_km"], abs=0.01)
+
+
+def test_greedy_shows_zero_saving_vs_itself():
+    out = route_optimizer.plan_routes({"stops": STOPS, "vehicle_count": 2}, solver="greedy")
+    assert out["comparison"]["saved_vs_greedy_km"] == 0
+
+
+def test_fuel_and_co2_are_linear_labelled_estimates():
+    from backend.services.road_network import routing_config
+
+    cfg = routing_config()
+    est = route_optimizer.estimates(100.0)
+    assert est["fuel_litres_est"] == pytest.approx(100 * cfg["fuel_litres_per_km"])
+    assert est["co2_kg_est"] == pytest.approx(100 * cfg["fuel_litres_per_km"] * cfg["co2_kg_per_litre"])
+    assert "estimate" in est["estimate_basis"].lower()
+    assert route_optimizer.estimates(0.0)["co2_kg_est"] == 0

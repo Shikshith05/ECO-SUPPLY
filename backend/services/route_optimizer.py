@@ -1,6 +1,6 @@
 """
 Fleet Optimizer service: parse a routing request, build the distance matrix,
-run a CVRP solver and return the routes.
+run a CVRP solver, and report honest comparisons.
 
 Request (all fields except `stops` optional):
     {
@@ -15,6 +15,11 @@ Request (all fields except `stops` optional):
 Distances come from the cached OSM road graph when available, otherwise
 straight-line distance x a measured detour factor; the response says which
 mode was used and why.
+
+Savings are always measured on the SAME distance matrix against two real
+baselines computed in the same request: greedy nearest-neighbour routes and
+"order as received" routes. Fuel and CO2 are labelled estimates derived
+linearly from distance with constants from config (routing section).
 """
 
 from __future__ import annotations
@@ -153,11 +158,36 @@ def parse_request(payload: dict) -> dict:
             "capacity": capacity, "capacity_source": capacity_source, "notes": notes}
 
 
-# ── Response ─────────────────────────────────────────────────────────────────
+# ── Metrics ───────────────────────────────────────────────────────────────────
+
+def estimates(distance_km: float) -> Dict[str, object]:
+    cfg = routing_config()
+    l_per_km = float(cfg["fuel_litres_per_km"])
+    co2_per_l = float(cfg["co2_kg_per_litre"])
+    price = cfg.get("fuel_price_per_litre")
+    litres = distance_km * l_per_km
+    return {
+        "fuel_litres_est": round(litres, 2),
+        "co2_kg_est": round(litres * co2_per_l, 2),
+        "fuel_cost_est": round(litres * float(price), 2) if price not in (None, "") else None,
+        "estimate_basis": (f"Estimate, not measured: distance x {l_per_km:g} L/km x {co2_per_l:g} kg CO2/L "
+                           "(constants in config.yaml, routing section)."),
+    }
+
+
+def _pct(saved: float, base: float) -> Optional[float]:
+    return round(100.0 * saved / base, 2) if base > 0 else None
+
+
+def _brief(sol: CVRPSolution, inst: CVRPInstance) -> dict:
+    return {"distance_km": round(sol.distance, 3), "vehicles_used": sol.vehicles_used,
+            "fleet_feasible": sol.vehicles_used <= inst.n_vehicles}
+
 
 def _empty_response(solver: str) -> dict:
     return {"solver": solver, "routes": [], "depot": None, "distance_mode": None,
-            "summary": {"distance_km": 0.0, "vehicles_used": 0}, "notes": ["No stops given."]}
+            "summary": {"distance_km": 0.0, "vehicles_used": 0, **estimates(0.0)},
+            "comparison": {}, "notes": ["No stops given."]}
 
 
 def plan_routes(payload: dict, solver: str = "ga") -> dict:
@@ -192,6 +222,8 @@ def plan_routes(payload: dict, solver: str = "ga") -> dict:
         result = CVRPSolution(routes=[], distance=0.0, solver=solver)
     else:
         result = SOLVERS[solver](inst, **kwargs)
+    baseline_greedy = result if solver == "greedy" else greedy.solve(inst)
+    baseline_order = greedy.solve_order_as_received(inst)
 
     customers = req["customers"]
     routes_out = []
@@ -210,6 +242,11 @@ def plan_routes(payload: dict, solver: str = "ga") -> dict:
             "path": path,
         })
 
+    saved_g = baseline_greedy.distance - result.distance
+    saved_o = baseline_order.distance - result.distance
+    est = estimates(result.distance)
+    est_g = estimates(baseline_greedy.distance)
+    est_o = estimates(baseline_order.distance)
     notes = list(req["notes"])
     if result.vehicles_used > inst.n_vehicles:
         notes.append(f"{solver} needed {result.vehicles_used} routes but only {inst.n_vehicles} vehicles were "
@@ -233,6 +270,17 @@ def plan_routes(payload: dict, solver: str = "ga") -> dict:
             "stops": inst.n_customers,
             "runtime_s": round(result.runtime_s, 3),
             "time_limit_s": time_limit if solver != "greedy" else None,
+            **est,
+        },
+        "comparison": {
+            "greedy": _brief(baseline_greedy, inst),
+            "order_as_received": _brief(baseline_order, inst),
+            "saved_vs_greedy_km": round(saved_g, 3),
+            "saved_vs_greedy_pct": _pct(saved_g, baseline_greedy.distance),
+            "saved_vs_order_as_received_km": round(saved_o, 3),
+            "saved_vs_order_as_received_pct": _pct(saved_o, baseline_order.distance),
+            "co2_saved_vs_greedy_kg_est": round(est_g["co2_kg_est"] - est["co2_kg_est"], 2),
+            "co2_saved_vs_order_as_received_kg_est": round(est_o["co2_kg_est"] - est["co2_kg_est"], 2),
         },
         "solver_stats": {k: v for k, v in result.meta.items() if k != "best_cost_history"},
         "notes": notes,
