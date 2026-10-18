@@ -136,10 +136,15 @@
       function renderResult(result) {
         document.getElementById('results').style.display = 'block';
         const summary = result.summary || {};
+        const cmp = result.comparison || {};
         document.getElementById('summary').innerHTML = `
           <p><strong>Solver:</strong> ${result.solver ?? '—'}</p>
           <p><strong>Total distance:</strong> ${summary.distance_km ?? 0} km (${result.distance_mode ?? '—'})</p>
-          <p><strong>Vehicles used:</strong> ${summary.vehicles_used ?? 0} of ${summary.vehicle_count ?? 0}</p>`;
+          <p><strong>Vehicles used:</strong> ${summary.vehicles_used ?? 0} of ${summary.vehicle_count ?? 0}</p>
+          <p><strong>Saved vs greedy:</strong> ${cmp.saved_vs_greedy_km ?? 0} km (${cmp.saved_vs_greedy_pct ?? 0}%)
+             · <strong>vs order as received:</strong> ${cmp.saved_vs_order_as_received_km ?? 0} km (${cmp.saved_vs_order_as_received_pct ?? 0}%)</p>
+          <p><strong>Fuel (estimate):</strong> ${summary.fuel_litres_est ?? 0} L · <strong>CO₂ (estimate):</strong> ${summary.co2_kg_est ?? 0} kg</p>
+          <p style="color:var(--muted);font-size:12px">${summary.estimate_basis ?? ''}</p>`;
         const list = document.getElementById('routesList');
         list.innerHTML = '';
         (result.routes || []).forEach((route, idx) => {

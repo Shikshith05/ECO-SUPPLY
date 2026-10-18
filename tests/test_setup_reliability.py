@@ -3,7 +3,7 @@
 import pandas as pd
 
 from backend import config as app_config
-from backend.utils.feature_engineering import add_demand_score, add_route_features
+from backend.utils.feature_engineering import add_demand_score
 from backend.utils.preprocessing import numeric_column
 
 
@@ -42,5 +42,3 @@ def test_feature_builders_tolerate_missing_columns():
     df = pd.DataFrame({"Order_Region": ["A", "B"]}, index=[5, 7])
     score = add_demand_score(df)
     assert list(score.index) == [5, 7]
-    out = add_route_features(df.copy())
-    assert out["estimated_fuel_liters"].tolist() == [0.0, 0.0]

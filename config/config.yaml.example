@@ -36,6 +36,14 @@ routing:
   # Value = median road/straight-line ratio over 2000 random node pairs of the
   # Bangalore graph, measured by scripts/download_osm_graph.py -> results/osm_detour_factor.json.
   haversine_detour_factor: 1.2283
+  # Fuel / CO2 ESTIMATES (shown as estimates in the API and UI, never as measurements):
+  #   fuel litres = distance_km x fuel_litres_per_km ; CO2 kg = litres x co2_kg_per_litre
+  # 0.08 L/km (12.5 km/L) is an assumed small petrol delivery van; 2.31 kg CO2 per
+  # litre is the standard tank-to-wheel factor for petrol. Change both for your fleet.
+  fuel_litres_per_km: 0.08
+  co2_kg_per_litre: 2.31
+  # Optional: set to your local fuel price to also show an estimated fuel cost (null = hidden).
+  fuel_price_per_litre: null
   max_stops: 150
   max_vehicles: 20
   default_time_limit_s: 5
