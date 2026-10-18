@@ -26,6 +26,30 @@ thresholds:
   risk_medium:               25
   delay_gap_warning_days:    2
 
+routing:
+  # OSM drive graph, created once by `python scripts/download_osm_graph.py` (never downloaded by the app).
+  graph_path: "data/external/osm/bangalore_drive.graphml"
+  osm_place: "Bangalore, India"
+  # A stop farther than this from the nearest graph node is outside graph coverage -> haversine fallback.
+  max_snap_km: 2.0
+  # Fallback only (graph unavailable): road km ~= straight-line km x this factor.
+  # Value = median road/straight-line ratio over 2000 random node pairs of the
+  # Bangalore graph, measured by scripts/download_osm_graph.py -> results/osm_detour_factor.json.
+  haversine_detour_factor: 1.2283
+  max_stops: 150
+  max_vehicles: 20
+  default_time_limit_s: 5
+  max_time_limit_s: 30
+  ga_params:
+    population_size: 30
+    tournament_size: 2
+    crossover_rate: 0.9
+    mutation_rate: 0.2
+    local_search_rate: 1.0
+    elite_count: 2
+    stall_generations: 150
+    seed_with_greedy: true
+
 upload:
   max_size_mb: 50
   allowed_extensions: ["csv"]

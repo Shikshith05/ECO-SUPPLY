@@ -57,3 +57,80 @@ index, so values silently become NaN. Every occurrence now goes through one
 helper, `numeric_column(df, col, default)`, which always returns a float
 Series aligned to `df.index`. Unit tests cover missing columns, non-numeric
 values and non-default indexes.
+
+## Task 2 — A real capacitated vehicle routing solver (CVRP)
+
+**Problem model.** One depot (node 0), N stops with integer demand, K
+vehicles with the same capacity Q. Every route is depot → stops → depot, each
+stop is visited exactly once, a route's load never exceeds Q, and at most K
+routes are used. The old code cut one tour into equal chunks with no depot and
+no return trip, which is why "2 vehicles" could beat "1 vehicle". With return
+trips that is impossible: by the triangle inequality, splitting a tour never
+shortens it. There is a test for this.
+
+**API (backward compatible).** `stops` keeps its old shape. New optional
+fields: `depot` (default: the first stop, matching how the old greedy
+started), per-stop `demand` (default 1), `capacity` (default
+ceil(total demand / K), the smallest even split), `time_limit_s` and `seed`.
+`/api/route/estimate` runs greedy, `/api/route/optimize` runs the GA, and
+`?solver=ortools` runs OR-Tools. Bad input returns HTTP 400 with a reason.
+The old α/β/γ/δ weights are accepted but ignored, and the response says why:
+fuel and CO2 are proportional to distance, and the "delay risk" term came from
+a made-up formula. Minimising distance is therefore the honest objective.
+
+**Distances.** `scripts/download_osm_graph.py` downloads the OSMnx Bangalore
+drive graph once and saves it as GraphML. It keeps the largest strongly
+connected component (155,442 nodes, 392,843 directed edges), so every pair of
+nodes is reachable. `backend/services/road_network.py` turns that into a
+compact `.npz` cache (node coordinates plus a CSR matrix of edge lengths) and
+loads it in a background thread at app start. Nothing downloads inside a
+request anymore. Per request, each stop snaps to its nearest node with a
+KD-tree; one multi-source Dijkstra (`scipy.sparse.csgraph`, written in C)
+gives road distances between all snapped nodes, and the snap distance is added
+at both ends. One-way streets make the matrix asymmetric, so every solver and
+2-opt are written to handle that. Route polylines come from Dijkstra's
+predecessor arrays.
+
+**Fallback.** If the graph file is missing or a stop is more than 2 km from
+the nearest graph node (outside coverage), distances are straight-line ×
+1.2283. That factor is not a guess: it is the median road / straight-line
+ratio over 2,000 random node pairs of this graph, from
+`results/osm_detour_factor.json`. The response always states
+`distance_mode` (`road_network` or `haversine_x_detour`) and the reason.
+
+**Solvers** (`models/routing_models/`, all exposing
+`solve(instance, seed=, time_limit=)`):
+- `greedy.py`: capacity-aware nearest neighbour; also the "order as received"
+  baseline.
+- `genetic_algorithm.py`: a real GA in the style of Prins (2004). The
+  chromosome is a giant tour (a permutation of the stops). It is decoded by
+  Prins' **split**, a shortest path over a DAG that cuts the permutation
+  optimally into capacity-feasible trips, with a fleet-limited version that
+  uses at most K trips. Selection is a binary tournament, crossover is OX,
+  mutation is swap or inversion, and every child gets 2-opt on each route,
+  written back into the chromosome. Elitism keeps the best individuals, and
+  clones are rejected by cost. The GA stops on a time limit, a generation cap
+  or a stall count, and the seed is configurable.
+- `ortools_solver.py`: OR-Tools routing (PATH_CHEAPEST_ARC, then Guided Local
+  Search) with a capacity dimension, as the strong reference.
+
+**Why giant tour + split + OX + 2-opt?** Permutation encodings make crossover
+easy, and OX always yields a valid permutation. Split moves the capacity
+constraint into the decoder, so the GA never needs repair operators or penalty
+tuning. Pure GAs converge slowly on routing problems; adding a local search
+step (a "memetic" GA) is the standard fix, and 2-opt is the cheapest
+effective move.
+
+**Honest caveat:** the population is seeded with the greedy tour. Split is
+optimal for a fixed order and elitism keeps the best individual, so the GA can
+never return worse than greedy. That makes the "GA ≤ greedy" test true by
+design. The benchmark (Task 4) therefore also reports a GA run without the
+greedy seed, to measure the search itself.
+
+**Tests.** Every solver on random instances: each stop exactly once, routes
+start and end at the depot, capacity and fleet respected. Split is checked
+against brute force over every cut of a fixed order. 2-opt is checked on an
+asymmetric matrix. A 3×3 synthetic road grid with a one-way row exercises road
+mode offline. Plus the 2-vs-1-vehicle sanity check, input validation (400s),
+and API smoke tests. `deap` was removed from requirements because nothing used
+it.

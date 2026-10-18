@@ -137,10 +137,9 @@
         document.getElementById('results').style.display = 'block';
         const summary = result.summary || {};
         document.getElementById('summary').innerHTML = `
-          <p><strong>Total distance:</strong> ${summary.distance_km ?? 0} km</p>
-          <p><strong>Fuel cost:</strong> ${summary.fuel_cost ?? 0}</p>
-          <p><strong>CO₂ saved vs baseline:</strong> ${summary.baseline_co2_saved ?? 0} kg</p>
-          <p><strong>Average delay risk:</strong> ${summary.delay_risk ?? 0}</p>`;
+          <p><strong>Solver:</strong> ${result.solver ?? '—'}</p>
+          <p><strong>Total distance:</strong> ${summary.distance_km ?? 0} km (${result.distance_mode ?? '—'})</p>
+          <p><strong>Vehicles used:</strong> ${summary.vehicles_used ?? 0} of ${summary.vehicle_count ?? 0}</p>`;
         const list = document.getElementById('routesList');
         list.innerHTML = '';
         (result.routes || []).forEach((route, idx) => {
