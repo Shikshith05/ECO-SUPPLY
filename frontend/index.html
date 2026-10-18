@@ -145,7 +145,7 @@
 
   <p class="hero-eyebrow">Supply Chain Intelligence Platform</p>
   <h1 class="hero-title">Predict.<br/>Analyse.<br/><em>Optimise.</em></h1>
-  <p class="hero-sub">Upload your supply chain data and get actionable insights — demand zones, delay risks, and shipping recommendations powered by ML.</p>
+  <p class="hero-sub">Analytics on the DataCo supply-chain dataset: KMeans demand segments for producers, a leakage-free late-shipment model for consumers, and capacitated route optimisation on Bangalore road distances.</p>
 
   <div class="portals">
     <!-- Producer Portal -->
@@ -159,7 +159,7 @@
       </div>
       <p class="portal-tag">Producer</p>
       <h3>Demand Intelligence</h3>
-      <p>Upload order data to identify high-demand regions, emerging markets, and low-demand zones across your global supply network.</p>
+      <p>Explore order-quantity heatmaps, high-volume low-profit regions, and KMeans demand segments of product × destination-city pairs.</p>
       <div class="portal-cta">
         Open Producer Dashboard
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
@@ -176,7 +176,7 @@
       </div>
       <p class="portal-tag">Consumer</p>
       <h3>Order Intelligence</h3>
-      <p>Predict delivery delays, score order risk, and get optimal shipping recommendations — giving customers visibility before issues occur.</p>
+      <p>Estimate the probability that a new order ships later than promised, see the main reasons, and compare shipping modes.</p>
       <div class="portal-cta">
         Open Consumer Dashboard
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
@@ -193,7 +193,7 @@
       </div>
       <p class="portal-tag">Fleet</p>
       <h3>Fleet Optimizer</h3>
-      <p>Optimize delivery routes across your fleet using distance, fuel, CO₂, and delay-risk weights for practical multi-objective planning.</p>
+      <p>Plan depot-based routes for a capacitated fleet with greedy, a genetic algorithm or OR-Tools, compared against greedy and order-as-received routes.</p>
       <div class="portal-cta">
         Open Fleet Optimizer
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
@@ -203,8 +203,19 @@
 
   <div class="status-row">
     <span class="status-dot"></span>
-    Models active — heuristic mode (plug in trained .pkl files to upgrade)
+    <span id="status-text">Checking backend…</span>
   </div>
 </div>
+<script>
+  fetch("/api/health").then((r) => r.json()).then((h) => {
+    const a = h.artifacts || {};
+    const mark = (ok, label) => `${label} ${ok ? "ready" : "missing"}`;
+    document.getElementById("status-text").textContent = [
+      mark(a.delay_model, "late-shipment model"),
+      mark(a.demand_segments, "demand segments"),
+      mark(a.road_graph, "road graph"),
+    ].join(" · ") + (a.delay_model && a.demand_segments && a.road_graph ? "" : " (see README: training scripts)");
+  }).catch(() => { document.getElementById("status-text").textContent = "Backend not reachable"; });
+</script>
 </body>
 </html>

@@ -1,14 +1,13 @@
-"""Unified launcher for the epoch Flask app."""
+"""Unified launcher for the epoch Flask app (uses the .venv created by setup_env.py)."""
 
 import os
 import platform
 import subprocess
-import sys
 import time
 import webbrowser
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
-VENV_DIR = os.path.join(ROOT, "venv")
+VENV_DIR = os.path.join(ROOT, ".venv")
 
 
 def is_windows() -> bool:
@@ -20,11 +19,11 @@ def python_executable() -> str:
 
 
 def main() -> None:
-    if not os.path.exists(VENV_DIR):
-        print("Run python setup_env.py first")
+    py = python_executable()
+    if not os.path.exists(py):
+        print("No .venv found. Run: python setup_env.py")
         return
 
-    py = python_executable()
     print("Starting Flask backend...")
     proc = subprocess.Popen([py, "backend/app.py"], cwd=ROOT)
     try:

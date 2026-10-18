@@ -38,9 +38,14 @@
 
       .input-row {
         display: grid;
-        grid-template-columns: 1fr 1fr auto;
+        grid-template-columns: 1.4fr 1fr 1fr 1fr auto;
         gap: 14px;
         align-items: end;
+      }
+      @media (max-width: 1100px) {
+        .input-row {
+          grid-template-columns: 1fr 1fr;
+        }
       }
       @media (max-width: 680px) {
         .input-row {
@@ -286,6 +291,34 @@
         margin-top: 6px;
       }
 
+      .plain-input {
+        width: 100%;
+        height: 42px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        padding: 0 12px;
+        font-family: "DM Sans", sans-serif;
+        font-size: 13.5px;
+        color: var(--text);
+        outline: none;
+      }
+      .plain-input:focus { border-color: var(--C-border); }
+      .mini-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 10px; }
+      .mini-table th, .mini-table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+      .mini-table th { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+      .mini-table td.num { font-family: "DM Mono", monospace; text-align: right; }
+      .up { color: #F28B82; }
+      .down { color: var(--C); }
+      .explain-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 18px 22px;
+        margin-bottom: 24px;
+      }
+      .explain-card p.muted { font-size: 12.5px; color: var(--muted); margin-top: 8px; }
+
       /* Shipping recommendation card */
       .ship-card {
         background: var(--surface);
@@ -446,8 +479,9 @@
           <p class="eyebrow">Consumer Intelligence</p>
           <h1>Delivery Insights</h1>
           <p>
-            Select a product and your pincode — the model will predict delivery
-            risk, estimated days, and the best shipping option.
+            Describe a new order — product, destination and shipping mode — and
+            the trained model estimates the probability that it ships later
+            than the promised shipping time, with the main reasons.
           </p>
         </div>
 
@@ -455,8 +489,8 @@
         <div class="query-card">
           <h3>Query the Model</h3>
           <p>
-            Two inputs are all it takes to get personalised delivery
-            intelligence.
+            The model only uses information known when the order is placed
+            (no actual shipping days, delivery status or order status).
           </p>
           <div class="input-row">
             <!-- Product search -->
@@ -487,10 +521,10 @@
               <input type="hidden" id="product-value" />
             </div>
 
-            <!-- Pincode search -->
+            <!-- Destination search -->
             <div class="field">
-              <label>Pincode</label>
-              <div class="search-wrap" id="pincode-wrap">
+              <label>Destination country</label>
+              <div class="search-wrap" id="destination-wrap">
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"
@@ -503,16 +537,26 @@
                 </svg>
                 <input
                   type="text"
-                  id="pincode-input"
-                  placeholder="Search pincode…"
+                  id="destination-input"
+                  placeholder="Search country…"
                   autocomplete="off"
-                  oninput="filterDropdown('pincode')"
-                  onfocus="openDropdown('pincode')"
-                  onblur="blurDropdown('pincode')"
+                  oninput="filterDropdown('destination')"
+                  onfocus="openDropdown('destination')"
+                  onblur="blurDropdown('destination')"
                 />
-                <div class="dropdown-list" id="pincode-list"></div>
+                <div class="dropdown-list" id="destination-list"></div>
               </div>
-              <input type="hidden" id="pincode-value" />
+              <input type="hidden" id="destination-value" />
+            </div>
+
+            <div class="field">
+              <label>Shipping mode</label>
+              <select id="mode-select" class="plain-input" onchange="checkReady()"></select>
+            </div>
+
+            <div class="field">
+              <label>Order time (optional)</label>
+              <input type="datetime-local" id="order-time" class="plain-input" />
             </div>
 
             <button class="run-btn" id="run-btn" onclick="runQuery()" disabled>
@@ -524,7 +568,7 @@
         <!-- Loader -->
         <div class="loader" id="loader" style="display: none">
           <div class="spinner"></div>
-          <p>Running consumer models…</p>
+          <p>Scoring the order…</p>
         </div>
 
         <!-- Results -->
@@ -550,22 +594,43 @@
             </div>
             <div class="delay-conf">
               <div class="conf-ring" id="conf-ring">—</div>
-              <div class="conf-lbl">Confidence</div>
+              <div class="conf-lbl">P(late)</div>
             </div>
           </div>
 
           <!-- Stats row -->
           <div class="stats-row" id="stats-row"></div>
 
-          <!-- Shipping recommendation -->
-          <p class="section-head">Recommended Shipping</p>
+          <!-- Why -->
+          <p class="section-head">Why: top factors for this order</p>
+          <div class="explain-card">
+            <table class="mini-table">
+              <thead><tr><th>Feature</th><th>Value</th><th style="text-align:right">SHAP (log-odds)</th><th>Effect</th></tr></thead>
+              <tbody id="reasons-tbody"></tbody>
+            </table>
+            <p class="muted">SHAP values from the XGBoost model: positive values push the prediction towards "late".</p>
+          </div>
+
+          <!-- Shipping comparison -->
+          <p class="section-head">Same order, every shipping mode</p>
           <div class="ship-card" id="ship-card">
             <div class="ship-badge" id="ship-mode">—</div>
             <div class="ship-info">
-              <h4>Recommended Shipping Mode</h4>
+              <h4>Lowest predicted late risk</h4>
               <p id="ship-reason">—</p>
             </div>
           </div>
+          <div class="explain-card">
+            <table class="mini-table">
+              <thead><tr><th>Shipping mode</th><th style="text-align:right">Promised days</th><th style="text-align:right">P(late)</th></tr></thead>
+              <tbody id="modes-tbody"></tbody>
+            </table>
+            <p class="muted" id="ship-caveat"></p>
+          </div>
+
+          <!-- History -->
+          <p class="section-head">History (descriptive, not a prediction)</p>
+          <div class="explain-card" id="history-card"></div>
 
           <div class="signals-card" id="signals-card" style="display: none">
             <p class="section-head" style="margin-bottom: 10px">
@@ -597,9 +662,7 @@
               <line x1="12" y1="8" x2="12" y2="12" />
               <line x1="12" y1="16" x2="12.01" y2="16" />
             </svg>
-            <span id="data-note-txt"
-              >Insights are based on historical order patterns.</span
-            >
+            <span id="data-note-txt">—</span>
           </p>
         </div>
         <!-- /results -->
@@ -614,8 +677,8 @@
           >
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
           </svg>
-          <h4>Select a product and pincode</h4>
-          <p>The model will return personalised delivery insights</p>
+          <h4>Select a product, destination and shipping mode</h4>
+          <p>The model returns the probability of a late shipment and why</p>
         </div>
       </main>
     </div>
@@ -623,50 +686,50 @@
 
     <script>
       const allProducts = [];
-      const allPincodes = [];
+      const allDestinations = [];
 
       async function loadOptions() {
         try {
-          const [pRes, pinRes] = await Promise.all([
+          const [pRes, dRes, mRes] = await Promise.all([
             fetch("/api/predict/options/products"),
-            fetch("/api/predict/options/pincodes"),
+            fetch("/api/predict/options/destinations"),
+            fetch("/api/predict/options/shipping-modes"),
           ]);
           const pData = await pRes.json();
-          const pinData = await pinRes.json();
+          const dData = await dRes.json();
+          const mData = await mRes.json();
           allProducts.push(...(pData.products || []));
-          allPincodes.push(...(pinData.pincodes || []));
+          allDestinations.push(...(dData.destinations || []));
           renderList("product", allProducts);
-          renderList("pincode", allPincodes);
+          renderList("destination", allDestinations);
+          const sel = document.getElementById("mode-select");
+          sel.innerHTML = (mData.shipping_modes || [])
+            .map((m) => `<option value="${escHtml(m.mode)}">${escHtml(m.mode)} (promised ${m.promised_days} d)</option>`)
+            .join("");
+          const std = (mData.shipping_modes || []).find((m) => m.mode === "Standard Class");
+          if (std) sel.value = std.mode;
+          if (dData.warning || mData.warning) showToast(dData.warning || mData.warning, "error");
         } catch (e) {
-          showToast(
-            "Could not load options — is the backend running?",
-            "error",
-          );
+          showToast("Could not load options — is the backend running?", "error");
         }
       }
 
       /* ── Searchable dropdown ── */
+      function sourceFor(type) {
+        return type === "product" ? allProducts : allDestinations;
+      }
       function renderList(type, items, query = "") {
         const list = document.getElementById(`${type}-list`);
         const q = query.toLowerCase();
-        const filtered = items
-          .filter((i) => String(i).toLowerCase().includes(q))
-          .slice(0, 80);
+        const filtered = items.filter((i) => String(i).toLowerCase().includes(q)).slice(0, 80);
         list.innerHTML =
           filtered
-            .map(
-              (item) => `
-      <div class="dropdown-item" onmousedown="selectItem('${type}','${escJs(String(item))}')">${highlight(String(item), q)}</div>
-    `,
-            )
-            .join("") ||
-          `<div class="dropdown-item" style="color:var(--muted)">No results</div>`;
+            .map((item) => `<div class="dropdown-item" onmousedown="selectItem('${type}','${escJs(String(item))}')">${highlight(String(item), q)}</div>`)
+            .join("") || `<div class="dropdown-item" style="color:var(--muted)">No results</div>`;
       }
-
       function filterDropdown(type) {
         const q = document.getElementById(`${type}-input`).value;
-        const src = type === "product" ? allProducts : allPincodes;
-        renderList(type, src, q);
+        renderList(type, sourceFor(type), q);
         document.getElementById(`${type}-list`).classList.add("open");
         document.getElementById(`${type}-value`).value = "";
         checkReady();
@@ -675,11 +738,7 @@
         filterDropdown(type);
       }
       function blurDropdown(type) {
-        setTimeout(
-          () =>
-            document.getElementById(`${type}-list`).classList.remove("open"),
-          180,
-        );
+        setTimeout(() => document.getElementById(`${type}-list`).classList.remove("open"), 180);
       }
       function selectItem(type, val) {
         document.getElementById(`${type}-input`).value = val;
@@ -689,33 +748,32 @@
       }
       function checkReady() {
         const p = document.getElementById("product-value").value;
-        const pc = document.getElementById("pincode-value").value;
-        document.getElementById("run-btn").disabled = !(p && pc);
+        const d = document.getElementById("destination-value").value;
+        const m = document.getElementById("mode-select").value;
+        document.getElementById("run-btn").disabled = !(p && d && m);
       }
       function highlight(text, q) {
         if (!q) return escHtml(text);
-        const re = new RegExp(
-          `(${q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`,
-          "gi",
-        );
+        const re = new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi");
         return escHtml(text).replace(re, "<mark>$1</mark>");
       }
 
       /* ── Run query ── */
       async function runQuery() {
         const product = document.getElementById("product-value").value;
-        const pincode = document.getElementById("pincode-value").value;
-        if (!product || !pincode) return;
+        const destination = document.getElementById("destination-value").value;
+        const shipping_mode = document.getElementById("mode-select").value;
+        const order_datetime = document.getElementById("order-time").value || undefined;
+        if (!product || !destination || !shipping_mode) return;
 
         document.getElementById("empty-state").style.display = "none";
         document.getElementById("results").style.display = "none";
         document.getElementById("loader").style.display = "flex";
-
         try {
           const res = await fetch("/api/predict/consumer", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ product, pincode }),
+            body: JSON.stringify({ product, destination, shipping_mode, order_datetime }),
           });
           const data = await res.json();
           if (data.error) throw new Error(data.error);
@@ -728,132 +786,90 @@
         }
       }
 
+      const pct = (v) => (v == null ? "—" : `${Math.round(v * 100)}%`);
+
       /* ── Render ── */
       function renderResults(d) {
-        const delay = d.delay || {};
-        const delivery = d.delivery || {};
-        const shipping = d.shipping || {};
+        const pred = d.prediction || {};
+        const ship = d.shipping || {};
         const ctx = d.context || {};
+        const hist = d.history || {};
+        const p = pred.probability_late || 0;
+        const promised = (pred.inputs_used || {}).Days_for_shipment_scheduled;
 
-        // Delay hero class
-        const risk = delay.delay_risk || 0;
-        const heroClass =
-          risk >= 0.6 ? "risk" : risk >= 0.4 ? "warning" : "safe";
         const hero = document.getElementById("delay-hero");
-        hero.className = `delay-hero ${heroClass}`;
-
-        document.getElementById("conf-ring").className = `conf-ring`;
-        hero.className = `delay-hero ${heroClass}`;
-        document.getElementById("delay-tag").textContent =
-          delay.is_late_predicted ? "Delay Predicted" : "On Time Expected";
-        document.getElementById("delay-title").textContent =
-          delay.is_late_predicted
-            ? "This order is likely to be delayed"
-            : "This order is expected to arrive on time";
+        hero.className = `delay-hero ${p >= 0.6 ? "risk" : p >= 0.4 ? "warning" : "safe"}`;
+        document.getElementById("delay-tag").textContent = pred.is_late_predicted ? "Late shipment likely" : "On-time shipment likely";
+        document.getElementById("delay-title").textContent = `${pct(p)} chance this order ships later than promised`;
         document.getElementById("delay-sub").textContent =
-          delivery.estimated_days != null
-            ? `Estimated ${delivery.estimated_days} days · Scheduled ${delivery.scheduled_days} days`
-            : "Insufficient historical data for exact estimate";
-        document.getElementById("conf-ring").textContent =
-          `${delay.confidence || 0}%`;
+          `${d.shipping_mode} promises ${promised} shipping day(s). Classified as late when P(late) ≥ ${pct(pred.decision_threshold)} (threshold chosen on validation data).`;
+        document.getElementById("conf-ring").textContent = pct(p);
 
-        // Stats
+        const same = hist.product_to_destination_same_mode || {};
+        const all = hist.product_to_destination_all_modes || {};
         document.getElementById("stats-row").innerHTML = `
-      <div class="stat-card"><div class="label">Delay Risk</div><div class="value">${Math.round(risk * 100)}%</div></div>
-      <div class="stat-card"><div class="label">Est. Delivery Days</div><div class="value">${delivery.estimated_days != null ? delivery.estimated_days + "d" : "—"}</div></div>
-      <div class="stat-card"><div class="label">Avg Delay Gap</div><div class="value">${delivery.avg_gap != null ? (delivery.avg_gap > 0 ? "+" : "") + delivery.avg_gap + "d" : "—"}</div></div>
-      <div class="stat-card"><div class="label">Historical Orders</div><div class="value">${d.order_count || 0}</div></div>
-    `;
+      <div class="stat-card"><div class="label">Predicted P(late)</div><div class="value">${pct(p)}</div></div>
+      <div class="stat-card"><div class="label">Promised Days</div><div class="value">${promised ?? "—"}</div></div>
+      <div class="stat-card"><div class="label">Past Late Rate (same mode)</div><div class="value">${pct(same.late_rate)}</div></div>
+      <div class="stat-card"><div class="label">Past Orders (same mode)</div><div class="value">${same.orders ?? 0}</div></div>`;
 
-        // Shipping recommendation
-        document.getElementById("ship-mode").textContent =
-          shipping.recommended_mode || "—";
-        document.getElementById("ship-reason").textContent =
-          shipping.reason || "—";
-
-        // External delay signals (separate box)
-        const signals = shipping.external_delay_signals || {};
-        const weatherSignal = signals.weather;
-        const newsSignal = signals.news;
-
-        const signalsCard = document.getElementById("signals-card");
-        const signalWeather = document.getElementById("signal-weather");
-        const signalNews = document.getElementById("signal-news");
-
-        if (weatherSignal || newsSignal) {
-          signalsCard.style.display = "block";
-          if (weatherSignal) {
-            signalWeather.style.display = "block";
-            document.getElementById("signal-weather-text").textContent =
-              weatherSignal;
-          } else {
-            signalWeather.style.display = "none";
-          }
-          if (newsSignal) {
-            signalNews.style.display = "block";
-            document.getElementById("signal-news-text").textContent =
-              newsSignal;
-          } else {
-            signalNews.style.display = "none";
-          }
-        } else {
-          signalsCard.style.display = "none";
-          signalWeather.style.display = "none";
-          signalNews.style.display = "none";
-        }
-
-        // Context chips
-        document.getElementById("context-chips").innerHTML = [
-          {
-            icon: '<circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10z"/>',
-            label: "Market",
-            val: ctx.market,
-          },
-          {
-            icon: '<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
-            label: "Region",
-            val: ctx.region,
-          },
-          {
-            icon: '<circle cx="12" cy="10" r="3"/><path d="M12 22s8-4 8-10a8 8 0 0 0-16 0c0 6 8 10 8 10z"/>',
-            label: "Country",
-            val: ctx.country,
-          },
-          {
-            icon: '<rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/>',
-            label: "Pincode",
-            val: d.pincode,
-          },
-        ]
-          .map(
-            (c) => `
-      <div class="chip">
-        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${c.icon}</svg>
-        <span>${c.label}</span> ${escHtml(String(c.val || "—"))}
-      </div>
-    `,
-          )
+        document.getElementById("reasons-tbody").innerHTML = (pred.top_reasons || [])
+          .map((r) => `<tr><td>${escHtml(r.feature)}</td><td>${escHtml(String(r.value))}</td>
+            <td class="num ${r.shap_log_odds > 0 ? "up" : "down"}">${r.shap_log_odds > 0 ? "+" : ""}${r.shap_log_odds.toFixed(3)}</td>
+            <td>${escHtml(r.direction)}</td></tr>`)
           .join("");
 
-        // Data note
+        document.getElementById("ship-mode").textContent = ship.lowest_late_risk_mode || "—";
+        document.getElementById("ship-reason").textContent = ship.reason || "—";
+        document.getElementById("modes-tbody").innerHTML = (ship.modes || [])
+          .map((m) => `<tr${m.shipping_mode === d.shipping_mode ? ' style="font-weight:600"' : ""}><td>${escHtml(m.shipping_mode)}${m.shipping_mode === d.shipping_mode ? " (selected)" : ""}</td>
+            <td class="num">${m.promised_days}</td><td class="num">${pct(m.probability_late)}</td></tr>`)
+          .join("");
+        document.getElementById("ship-caveat").textContent = ship.caveat || "";
+
+        const histRow = (label, h) =>
+          `<tr><td>${label}</td><td class="num">${h.orders ?? 0}</td><td class="num">${pct(h.late_rate)}</td>
+           <td class="num">${h.avg_actual_shipping_days ?? "—"}</td><td class="num">${h.avg_scheduled_shipping_days ?? "—"}</td></tr>`;
+        document.getElementById("history-card").innerHTML = `
+          <table class="mini-table">
+            <thead><tr><th>Past shipped orders: ${escHtml(d.product)} → ${escHtml(d.destination)}</th><th style="text-align:right">Orders</th>
+              <th style="text-align:right">Late rate</th><th style="text-align:right">Avg actual days</th><th style="text-align:right">Avg promised days</th></tr></thead>
+            <tbody>${histRow("All shipping modes", all)}${histRow(escHtml(d.shipping_mode), same)}</tbody>
+          </table>
+          <p class="muted">${escHtml(hist.label || "")}</p>`;
+
+        const sig = d.external_signals || {};
+        const signalsCard = document.getElementById("signals-card");
+        signalsCard.style.display = sig.available && (sig.weather || sig.news) ? "block" : "none";
+        [["signal-weather", sig.weather], ["signal-news", sig.news]].forEach(([id, text]) => {
+          document.getElementById(id).style.display = text ? "block" : "none";
+          if (text) document.getElementById(`${id}-text`).textContent = text;
+        });
+
+        document.getElementById("context-chips").innerHTML = [
+          { icon: '<circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10z"/>', label: "Market", val: ctx.market },
+          { icon: '<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>', label: "Region", val: ctx.region },
+          { icon: '<circle cx="12" cy="10" r="3"/><path d="M12 22s8-4 8-10a8 8 0 0 0-16 0c0 6 8 10 8 10z"/>', label: "Country", val: ctx.country },
+          { icon: '<rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/>', label: "Mode", val: d.shipping_mode },
+        ]
+          .map((c) => `<div class="chip"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${c.icon}</svg>
+            <span>${c.label}</span> ${escHtml(String(c.val || "—"))}</div>`)
+          .join("");
+
+        const q = d.model_quality || {};
         document.getElementById("data-note-txt").textContent =
-          d.data_source === "pincode-matched"
-            ? `Insights based on ${d.order_count} orders matching this product and pincode.`
-            : `No exact pincode match — insights based on ${d.order_count} orders for this product across all locations.`;
+          `Model quality on held-out later orders (${q.test_period}): ROC-AUC ${q.test_roc_auc}, PR-AUC ${q.test_pr_auc}. ${q.note || ""} ${d.granularity || ""}` +
+          (sig.available ? "" : ` ${sig.reason || ""}`);
 
         document.getElementById("results").style.display = "block";
       }
 
       /* ── Helpers ── */
       function escHtml(s) {
-        return String(s)
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")
-          .replace(/"/g, "&quot;");
+        return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
       }
       function escJs(s) {
-        return s.replace(/'/g, "\\'");
+        return s.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
       }
       function showToast(msg, type = "") {
         const t = document.getElementById("toast");

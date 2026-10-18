@@ -1,52 +1,42 @@
-"""Fleet Optimizer route endpoints."""
+"""
+Fleet Optimizer route endpoints.
 
-import os
-import sys
+  POST /api/route/estimate              greedy nearest-neighbour (instant)
+  POST /api/route/optimize              genetic algorithm (default)
+  POST /api/route/optimize?solver=...   ga | ortools | greedy
+  GET  /api/route/graph/status          road-graph status (never downloads)
+"""
+
 from flask import Blueprint, jsonify, request
 
-ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.insert(0, ROOT)
-
-from services.route_optimizer import greedy_estimate, graph_status, load_bangalore_graph, optimize_routes
+from backend.services import route_optimizer
+from backend.services.route_optimizer import RoutingInputError
 
 routing_bp = Blueprint("routing", __name__)
 
 
-@routing_bp.route("/optimize", methods=["POST"])
-def optimize_route():
+def _plan(solver: str):
     try:
         payload = request.get_json(silent=True) or {}
-        stops = payload.get("stops", [])
-        vehicle_count = int(payload.get("vehicle_count", 1) or 1)
-        weights = payload.get("weights") or {}
-
-        if not isinstance(stops, list) or not stops:
-            return jsonify({"status": "ok", "data": {"routes": [], "summary": {"distance_km": 0.0, "fuel_cost": 0.0, "co2_kg": 0.0, "delay_risk": 0.0, "baseline_co2_saved": 0.0}}})
-
-        result = optimize_routes(stops, vehicle_count=vehicle_count, weights=weights)
-        return jsonify({"status": "ok", "data": result})
+        return jsonify({"status": "ok", "data": route_optimizer.plan_routes(payload, solver=solver)})
+    except RoutingInputError as exc:
+        return jsonify({"status": "error", "message": str(exc)}), 400
     except Exception as exc:
         return jsonify({"status": "error", "message": str(exc)}), 500
 
 
-@routing_bp.route("/graph/status", methods=["GET"])
-def graph_route_status():
-    try:
-        load_bangalore_graph()
-        return jsonify({"status": "ok", "data": graph_status()})
-    except Exception as exc:
-        return jsonify({"status": "error", "message": str(exc)}), 500
+@routing_bp.route("/optimize", methods=["POST"])
+def optimize_route():
+    return _plan(request.args.get("solver", "ga").strip().lower())
 
 
 @routing_bp.route("/estimate", methods=["POST"])
 def estimate_route():
-    try:
-        payload = request.get_json(silent=True) or {}
-        stops = payload.get("stops", [])
-        vehicle_count = int(payload.get("vehicle_count", 1) or 1)
-        weights = payload.get("weights") or {}
+    return _plan("greedy")
 
-        result = greedy_estimate(stops, vehicle_count=vehicle_count, weights=weights)
-        return jsonify({"status": "ok", "data": result})
-    except Exception as exc:
-        return jsonify({"status": "error", "message": str(exc)}), 500
+
+@routing_bp.route("/graph/status", methods=["GET"])
+def graph_route_status():
+    # Reports whether the cached graph is on disk / loaded. It does NOT download:
+    # the graph is created offline by scripts/download_osm_graph.py.
+    return jsonify({"status": "ok", "data": route_optimizer.graph_status()})

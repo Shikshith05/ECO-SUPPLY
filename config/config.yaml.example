@@ -9,22 +9,45 @@ apis:
   newsapi_key: "YOUR_NEWSAPI_KEY_HERE"
 
 model:
-  cluster_model_path:  "saved_models/cluster_model.pkl"
-  delay_model_path:    "saved_models/delay_model.pkl"
-  risk_model_path:     "saved_models/risk_model.pkl"
+  # Rule-based composite score used for descriptive region rankings on the
+  # producer page (NOT a model): weighted min-max of sales, quantity, profit, on-time rate.
   demand_score_weights:
     sales:    0.40
     quantity: 0.30
     profit:   0.20
     risk_inv: 0.10
 
-thresholds:
-  high_demand_percentile:    0.67
-  low_demand_percentile:     0.33
-  risk_critical:             75
-  risk_high:                 50
-  risk_medium:               25
-  delay_gap_warning_days:    2
+routing:
+  # OSM drive graph, created once by `python scripts/download_osm_graph.py` (never downloaded by the app).
+  graph_path: "data/external/osm/bangalore_drive.graphml"
+  osm_place: "Bangalore, India"
+  # A stop farther than this from the nearest graph node is outside graph coverage -> haversine fallback.
+  max_snap_km: 2.0
+  # Fallback only (graph unavailable): road km ~= straight-line km x this factor.
+  # Value = median road/straight-line ratio over 2000 random node pairs of the
+  # Bangalore graph, measured by scripts/download_osm_graph.py -> results/osm_detour_factor.json.
+  haversine_detour_factor: 1.2283
+  # Fuel / CO2 ESTIMATES (shown as estimates in the API and UI, never as measurements):
+  #   fuel litres = distance_km x fuel_litres_per_km ; CO2 kg = litres x co2_kg_per_litre
+  # 0.08 L/km (12.5 km/L) is an assumed small petrol delivery van; 2.31 kg CO2 per
+  # litre is the standard tank-to-wheel factor for petrol. Change both for your fleet.
+  fuel_litres_per_km: 0.08
+  co2_kg_per_litre: 2.31
+  # Optional: set to your local fuel price to also show an estimated fuel cost (null = hidden).
+  fuel_price_per_litre: null
+  max_stops: 150
+  max_vehicles: 20
+  default_time_limit_s: 5
+  max_time_limit_s: 30
+  ga_params:
+    population_size: 30
+    tournament_size: 2
+    crossover_rate: 0.9
+    mutation_rate: 0.2
+    local_search_rate: 1.0
+    elite_count: 2
+    stall_generations: 150
+    seed_with_greedy: true
 
 upload:
   max_size_mb: 50

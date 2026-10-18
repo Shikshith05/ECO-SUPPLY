@@ -9,11 +9,16 @@ and returns a DataFrame with additional engineered columns.
 import pandas as pd
 import numpy as np
 
+from backend.utils.preprocessing import normalise_0_1, numeric_column
+
 
 def add_shipping_delay_feature(df: pd.DataFrame) -> pd.DataFrame:
     """
     Compute actual vs scheduled shipping gap.
     Positive = late, Negative = early, 0 = on time.
+
+    Descriptive analytics only: this is known after delivery, so it must never
+    feed a predictive model (it is in delay_model.BANNED_COLUMNS).
     """
     if "Days_for_shipping_real" in df.columns and "Days_for_shipment_scheduled" in df.columns:
         df["shipping_delay_gap"] = (
@@ -39,27 +44,24 @@ def add_discount_impact_feature(df: pd.DataFrame) -> pd.DataFrame:
 
 def add_demand_score(df: pd.DataFrame) -> pd.Series:
     """
-    Composite demand score (0–1) per row based on Sales, Quantity, Profit.
-    Used by demand_clustering.py as input features before clustering.
-    Replace with model's own feature set once training is complete.
+    Rule-based composite score (0–1) per row: a weighted sum of min-max
+    normalised sales, quantity, profit and on-time rate. Weights come from
+    config.yaml (model.demand_score_weights). Used only as a descriptive
+    ranking aid in the producer overview; it is not a trained model.
     """
-    from utils.preprocessing import normalise_0_1
+    from backend.config import load_config
 
-    sales = pd.to_numeric(df["Sales"], errors="coerce") if "Sales" in df.columns else pd.Series(0.0, index=df.index)
-    qty = pd.to_numeric(df["Order_Item_Quantity"], errors="coerce") if "Order_Item_Quantity" in df.columns else pd.Series(0.0, index=df.index)
-    profit = pd.to_numeric(df["Order_Profit_Per_Order"], errors="coerce") if "Order_Profit_Per_Order" in df.columns else pd.Series(0.0, index=df.index)
-    risk = pd.to_numeric(df["Late_delivery_risk"], errors="coerce") if "Late_delivery_risk" in df.columns else pd.Series(0.0, index=df.index)
-
-    sales_norm  = normalise_0_1(sales.fillna(0))
-    qty_norm    = normalise_0_1(qty.fillna(0))
-    profit_norm = normalise_0_1(profit.fillna(0))
-    risk_inv    = 1 - normalise_0_1(risk.fillna(0))
+    w = (load_config().get("model") or {}).get("demand_score_weights") or {}
+    sales_norm  = normalise_0_1(numeric_column(df, "Sales"))
+    qty_norm    = normalise_0_1(numeric_column(df, "Order_Item_Quantity"))
+    profit_norm = normalise_0_1(numeric_column(df, "Order_Profit_Per_Order"))
+    risk_inv    = 1 - normalise_0_1(numeric_column(df, "Late_delivery_risk"))
 
     score = (
-        sales_norm  * 0.40 +
-        qty_norm    * 0.30 +
-        profit_norm * 0.20 +
-        risk_inv    * 0.10
+        sales_norm  * float(w["sales"]) +
+        qty_norm    * float(w["quantity"]) +
+        profit_norm * float(w["profit"]) +
+        risk_inv    * float(w["risk_inv"])
     )
     return score.rename("demand_score")
 
@@ -74,47 +76,11 @@ def add_temporal_features(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def add_route_features(df: pd.DataFrame) -> pd.DataFrame:
-    """Add shared route-planning features for new Fleet Optimizer models."""
-    distance_km = (
-        pd.to_numeric(df["distance_km"], errors="coerce").fillna(0)
-        if "distance_km" in df.columns
-        else pd.Series(0.0, index=df.index)
-    )
-    load_kg = (
-        pd.to_numeric(df["vehicle_load_kg"], errors="coerce").fillna(40)
-        if "vehicle_load_kg" in df.columns
-        else pd.Series(40.0, index=df.index)
-    )
-    speed_kph = (
-        pd.to_numeric(df["road_segment_speed_kph"], errors="coerce").fillna(35)
-        if "road_segment_speed_kph" in df.columns
-        else pd.Series(35.0, index=df.index)
-    )
-
-    df["road_segment_speed_kph"] = speed_kph
-    df["estimated_travel_time_min"] = (distance_km / speed_kph.replace(0, np.nan) * 60).fillna(0)
-    df["fuel_burn_rate_l_per_km"] = 0.08 + 0.003 * (load_kg / 40.0)
-    df["estimated_fuel_liters"] = distance_km * df["fuel_burn_rate_l_per_km"]
-    return df
-
-
 def build_producer_features(df: pd.DataFrame) -> pd.DataFrame:
     """Full feature pipeline for the producer-side demand clustering model."""
     df = add_shipping_delay_feature(df)
     df = add_profit_margin_feature(df)
     df = add_discount_impact_feature(df)
     df = add_temporal_features(df)
-    df = add_route_features(df)
     df["demand_score"] = add_demand_score(df)
-    return df
-
-
-def build_consumer_features(df: pd.DataFrame) -> pd.DataFrame:
-    """Full feature pipeline for the three consumer-side models."""
-    df = add_shipping_delay_feature(df)
-    df = add_profit_margin_feature(df)
-    df = add_discount_impact_feature(df)
-    df = add_temporal_features(df)
-    df = add_route_features(df)
     return df

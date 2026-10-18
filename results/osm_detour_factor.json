@@ -1,0 +1,15 @@
+{
+  "pairs_requested": 2000,
+  "pairs_used": 2000,
+  "min_straight_line_km": 0.5,
+  "seed": 7,
+  "median_ratio": 1.2283,
+  "mean_ratio": 1.2588,
+  "p10_ratio": 1.1506,
+  "p90_ratio": 1.3872,
+  "mean_straight_line_km": 12.897,
+  "mean_road_km": 15.849,
+  "place": "Bangalore, India",
+  "nodes": 155442,
+  "edges": 392843
+}
