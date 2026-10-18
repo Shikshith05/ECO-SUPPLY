@@ -23,6 +23,7 @@ from backend.config import load_config
 from backend.routes.prediction_routes import prediction_bp
 from backend.routes.recommendation_routes import recommendation_bp
 from backend.routes.routing_routes import routing_bp
+from backend.services import road_network
 
 # ── Load config (falls back to config.yaml.example on a fresh clone) ─────────
 config = load_config()
@@ -43,6 +44,11 @@ os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 app.register_blueprint(prediction_bp,      url_prefix="/api/predict")
 app.register_blueprint(recommendation_bp,  url_prefix="/api/recommend")
 app.register_blueprint(routing_bp,         url_prefix="/api/route")
+
+# Load the cached road graph in a background thread so the first routing
+# request does not pay the load time. Tests disable this (EPOCH_GRAPH_WARMUP=0).
+if os.environ.get("EPOCH_GRAPH_WARMUP", "1") != "0":
+    road_network.warm_up_async()
 
 # ── Serve frontend ────────────────────────────────────────────────────────────
 @app.route("/")

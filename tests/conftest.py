@@ -7,9 +7,13 @@ connection raises immediately so an accidental download fails loudly
 instead of silently slowing the suite down.
 """
 
+import os
 import socket
 
 import pytest
+
+# Must be set before backend.app is imported: no background graph loading in tests.
+os.environ["EPOCH_GRAPH_WARMUP"] = "0"
 
 
 class NetworkBlockedError(RuntimeError):
@@ -31,13 +35,7 @@ def _block_network(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _no_osm_graph(monkeypatch):
-    """Pretend the OSM graph is not available (no download, no disk load)."""
-    from backend.routes import routing_routes
-    from backend.services import route_optimizer
+    """Pretend the cached OSM graph is not available (no disk load, no download)."""
+    from backend.services import road_network
 
-    def unavailable():
-        return {"loaded": False, "cached": False, "graph": None, "reason": "disabled in tests"}
-
-    # Patch both the service module and the name the route module imported.
-    monkeypatch.setattr(route_optimizer, "load_bangalore_graph", unavailable)
-    monkeypatch.setattr(routing_routes, "load_bangalore_graph", unavailable)
+    monkeypatch.setattr(road_network, "load_network", lambda: None)

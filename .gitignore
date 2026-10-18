@@ -31,7 +31,7 @@ instance/
 # Data files (large — don't commit raw CSVs)
 data/raw/
 data/processed/*.csv
-data/external/*.csv
+data/external/
 uploads/
 
 # Trained models (large binary files — use Git LFS or cloud storage)
@@ -45,6 +45,9 @@ config/config.yaml
 
 # OSMnx HTTP cache
 cache/
+
+# Generated benchmark smoke output (quick runs are not for reporting)
+results/*_quick*
 
 # OS
 .DS_Store
