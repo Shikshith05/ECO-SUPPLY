@@ -45,10 +45,24 @@ app.register_blueprint(prediction_bp,      url_prefix="/api/predict")
 app.register_blueprint(recommendation_bp,  url_prefix="/api/recommend")
 app.register_blueprint(routing_bp,         url_prefix="/api/route")
 
-# Load the cached road graph in a background thread so the first routing
-# request does not pay the load time. Tests disable this (EPOCH_GRAPH_WARMUP=0).
-if os.environ.get("EPOCH_GRAPH_WARMUP", "1") != "0":
+def _should_warm_up_graph() -> bool:
+    """
+    Load the cached road graph in a background thread so the first routing
+    request does not pay the load time. Tests disable this (EPOCH_GRAPH_WARMUP=0).
+    Flask's debug reloader imports this module in a watcher process AND in the
+    serving child; only the child (WERKZEUG_RUN_MAIN=true) needs the graph.
+    """
+    if os.environ.get("EPOCH_GRAPH_WARMUP", "1") == "0":
+        return False
+    is_reloader_watcher = (__name__ == "__main__" and config.get("app", {}).get("debug", True)
+                           and os.environ.get("WERKZEUG_RUN_MAIN") != "true")
+    return not is_reloader_watcher
+
+
+if _should_warm_up_graph():
     road_network.warm_up_async()
+    from models.consumer_models import delay_model
+    delay_model.warm_up_async()
 
 # ── Serve frontend ────────────────────────────────────────────────────────────
 @app.route("/")
@@ -74,7 +88,20 @@ def static_files(filename):
 # ── Health check ──────────────────────────────────────────────────────────────
 @app.route("/api/health")
 def health():
-    return {"status": "ok", "version": config.get("app", {}).get("version", "1.0.0")}
+    from models.consumer_models.delay_model import MODEL_PATH as DELAY_MODEL_PATH
+    from models.producer_models.demand_segments import MODEL_PATH as DEMAND_MODEL_PATH
+
+    graph = road_network.status()
+    return {
+        "status": "ok",
+        "version": config.get("app", {}).get("version", "1.0.0"),
+        # Which trained artifacts exist locally (all are gitignored and built by scripts/).
+        "artifacts": {
+            "delay_model": os.path.exists(DELAY_MODEL_PATH),
+            "demand_segments": os.path.exists(DEMAND_MODEL_PATH),
+            "road_graph": bool(graph["graph_file_present"] or graph["cache_file_present"]),
+        },
+    }
 
 # ── Run ───────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":

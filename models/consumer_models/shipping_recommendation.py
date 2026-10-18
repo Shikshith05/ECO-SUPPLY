@@ -1,103 +1,53 @@
 """
 epoch/models/consumer_models/shipping_recommendation.py
 --------------------------------------------------------
-Consumer-side model: Optimal Shipping Mode Recommendation
+Shipping-mode comparison for a CSV of orders (POST /api/recommend/shipping).
 
-STATUS: STUB — rule-based recommender active.
-        Replace _recommend_mode() with your trained model.
+Each order is re-scored by the trained late-delivery model once per shipping
+mode (Same Day, First Class, Second Class, Standard Class), and the mode with
+the lowest predicted probability of missing its promised shipping time is
+reported. Only order-time columns are used (see delay_model.FEATURES); the
+uploaded file's own outcome columns (Late_delivery_risk, Delivery_Status, ...)
+are ignored.
 
-Output: recommended shipping mode per order with reasoning.
-Modes: Standard Class | First Class | Second Class | Same Day
+Caveat, also returned in the response: this is a what-if comparison based on
+historical associations, not a causal estimate, and "late" is relative to
+each mode's own promise, so the least-risky mode is often the slowest.
 """
 
-import os
-import sys
-import pandas as pd
 import numpy as np
+import pandas as pd
 
-ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.insert(0, ROOT)
-
-from backend.utils.feature_engineering import build_consumer_features
-
-SHIPPING_MODES = ["Same Day", "First Class", "Second Class", "Standard Class"]
+from models.consumer_models import delay_model
 
 
-def _load_model():
-    """Uncomment when model is ready."""
-    # import joblib
-    # return joblib.load(os.path.join(ROOT, "saved_models", "shipping_model.pkl"))
-    return None
+def run_shipping_recommendation(df: pd.DataFrame, max_rows: int = 500) -> dict:
+    bundle = delay_model.load_bundle()
+    pipe = bundle["pipeline"]
+    scheduled = bundle["lookups"]["scheduled_days"]
+    modes = sorted(scheduled)
 
+    X = delay_model.build_feature_frame(df).head(max_rows)
+    probs = np.column_stack([
+        pipe.predict_proba(X.assign(Shipping_Mode=m, Days_for_shipment_scheduled=scheduled[m]))[:, 1]
+        for m in modes
+    ])
+    best = probs.argmin(axis=1)
 
-def _recommend_mode(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    ── REPLACE WITH YOUR TRAINED MODEL ──
-
-    Input : feature-engineered DataFrame
-    Output: DataFrame with added columns:
-              recommended_mode (str)  – best shipping mode
-              recommendation_reason  – short explanation string
-
-    When model is ready:
-        model = _load_model()
-        X     = df[FEATURE_COLS]
-        preds = model.predict(X)
-        df["recommended_mode"] = preds
-    """
-    # Stub: recommend based on scheduled days and late delivery risk
-    def _rule(row):
-        scheduled = row.get("Days_for_shipment_scheduled", 5)
-        risk      = row.get("Late_delivery_risk", 0)
-        profit    = row.get("Order_Profit_Per_Order", 0)
-
-        if scheduled <= 1 or risk == 1:
-            return "Same Day", "High delay risk — expedited shipping advised"
-        elif scheduled <= 2 and profit > 50:
-            return "First Class", "High-value order, priority shipping recommended"
-        elif scheduled <= 4:
-            return "Second Class", "Moderate timeline, balanced cost/speed"
-        else:
-            return "Standard Class", "Adequate lead time for economy shipping"
-
-    results = df.apply(_rule, axis=1, result_type="expand")
-    df["recommended_mode"]      = results[0]
-    df["recommendation_reason"] = results[1]
-    return df
-
-
-def run_shipping_recommendation(df: pd.DataFrame) -> dict:
-    """
-    Full pipeline for shipping recommendation.
-
-    Returns:
-        dict with keys:
-          summary       – mode distribution counts
-          orders        – per-order recommendations (sample of 500)
-    """
-    df = build_consumer_features(df)
-    df = _recommend_mode(df)
-
-    mode_counts = df["recommended_mode"].value_counts().to_dict()
-
-    summary = {
-        "total_orders":    len(df),
-        "mode_breakdown":  mode_counts,
-        "same_day_pct":    round(mode_counts.get("Same Day",       0) / len(df) * 100, 1) if len(df) else 0,
-        "first_class_pct": round(mode_counts.get("First Class",    0) / len(df) * 100, 1) if len(df) else 0,
-        "second_class_pct":round(mode_counts.get("Second Class",   0) / len(df) * 100, 1) if len(df) else 0,
-        "standard_pct":    round(mode_counts.get("Standard Class", 0) / len(df) * 100, 1) if len(df) else 0,
+    orders = []
+    order_ids = df["Order_Id"].head(max_rows).tolist() if "Order_Id" in df.columns else [None] * len(X)
+    for i in range(len(X)):
+        orders.append({
+            "Order_Id": order_ids[i],
+            "current_mode": X.iloc[i]["Shipping_Mode"],
+            "lowest_late_risk_mode": modes[best[i]],
+            "probability_late_by_mode": {m: round(float(probs[i, k]), 4) for k, m in enumerate(modes)},
+        })
+    counts = pd.Series([modes[b] for b in best]).value_counts().to_dict()
+    return {
+        "summary": {"orders_scored": len(X), "lowest_late_risk_mode_counts": counts,
+                    "promised_days_by_mode": scheduled},
+        "orders": orders,
+        "caveat": ("What-if comparison from a correlational model; 'late' is relative to each mode's own "
+                   "promised shipping days, so the least-risky mode is often the slowest."),
     }
-
-    cols = ["Order_Id", "Order_Region", "Market", "Shipping_Mode",
-            "recommended_mode", "recommendation_reason",
-            "Days_for_shipment_scheduled", "Late_delivery_risk"]
-    available = [c for c in cols if c in df.columns]
-    orders = (
-        df[available]
-        .head(500)
-        .fillna("—")
-        .to_dict(orient="records")
-    )
-
-    return {"summary": summary, "orders": orders}

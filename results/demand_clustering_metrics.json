@@ -1,0 +1,125 @@
+{
+  "generated_at": "2026-10-18T11:24:33+00:00",
+  "dataset": "DataCoSupplyChainDataset.csv",
+  "unit": "one row per (Product_Name, Order_City) pair",
+  "features": [
+    "log_total_sales",
+    "log_total_quantity",
+    "profit_margin"
+  ],
+  "scaling": "StandardScaler (z-scores)",
+  "n_pairs": 39839,
+  "silhouette_by_k": {
+    "2": 0.3717,
+    "3": 0.4171,
+    "4": 0.3256,
+    "5": 0.2775,
+    "6": 0.2824,
+    "7": 0.291,
+    "8": 0.2782
+  },
+  "silhouette_sample_size": 10000,
+  "chosen_k": 3,
+  "chosen_silhouette": 0.4171,
+  "inertia_by_k": {
+    "2": 75609.9,
+    "3": 50131.0,
+    "4": 39069.9,
+    "5": 33593.1,
+    "6": 29144.4,
+    "7": 25849.0,
+    "8": 23425.6
+  },
+  "segments": [
+    {
+      "cluster_id": 1,
+      "name": "Above-average demand \u00b7 profitable",
+      "pairs": 11886,
+      "share_of_pairs": 0.2984,
+      "mean_total_sales": 2468.07,
+      "median_total_sales": 1299.87,
+      "mean_total_quantity": 25.2,
+      "mean_profit_margin": 0.1231,
+      "mean_orders": 11.61,
+      "centroid_z": {
+        "log_total_sales": 1.104,
+        "log_total_quantity": 1.153,
+        "profit_margin": 0.011
+      },
+      "example_pairs": [
+        [
+          "Field & Stream Sportsman 16 Gun Fire Safe",
+          "New York City"
+        ],
+        [
+          "Field & Stream Sportsman 16 Gun Fire Safe",
+          "Santo Domingo"
+        ],
+        [
+          "Field & Stream Sportsman 16 Gun Fire Safe",
+          "Tegucigalpa"
+        ]
+      ]
+    },
+    {
+      "cluster_id": 2,
+      "name": "Below-average demand \u00b7 loss-making",
+      "pairs": 4108,
+      "share_of_pairs": 0.1031,
+      "mean_total_sales": 319.75,
+      "median_total_sales": 199.99,
+      "mean_total_quantity": 3.51,
+      "mean_profit_margin": -0.5431,
+      "mean_orders": 1.7,
+      "centroid_z": {
+        "log_total_sales": -0.366,
+        "log_total_quantity": -0.407,
+        "profit_margin": -2.332
+      },
+      "example_pairs": [
+        [
+          "Dell Laptop",
+          "Hanover"
+        ],
+        [
+          "Dell Laptop",
+          "Marseille"
+        ],
+        [
+          "Dell Laptop",
+          "Cerignola"
+        ]
+      ]
+    },
+    {
+      "cluster_id": 0,
+      "name": "Below-average demand \u00b7 profitable",
+      "pairs": 23845,
+      "share_of_pairs": 0.5985,
+      "mean_total_sales": 257.32,
+      "median_total_sales": 199.92,
+      "mean_total_quantity": 2.94,
+      "mean_profit_margin": 0.2325,
+      "mean_orders": 1.49,
+      "centroid_z": {
+        "log_total_sales": -0.487,
+        "log_total_quantity": -0.504,
+        "profit_margin": 0.398
+      },
+      "example_pairs": [
+        [
+          "SOLE E35 Elliptical",
+          "Plymouth"
+        ],
+        [
+          "SOLE E35 Elliptical",
+          "Chelmsford"
+        ],
+        [
+          "SOLE E35 Elliptical",
+          "Genoa"
+        ]
+      ]
+    }
+  ]
+}

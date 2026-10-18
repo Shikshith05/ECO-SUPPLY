@@ -2,7 +2,7 @@
 Shared test fixtures.
 
 Tests must never touch the network: the OSM road-graph loader is replaced
-with a stub that reports "graph unavailable", and any outbound socket
+with a fake that reports "graph unavailable", and any outbound socket
 connection raises immediately so an accidental download fails loudly
 instead of silently slowing the suite down.
 """

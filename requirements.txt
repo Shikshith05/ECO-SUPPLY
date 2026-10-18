@@ -14,3 +14,4 @@ shapely==2.0.4
 pytest==9.1.1
 ortools==9.11.4210
 scipy==1.17.1
+matplotlib==3.9.2

@@ -4,7 +4,9 @@ epoch/backend/services/weather_service.py
 Fetches weather data for major supply chain hub cities.
 Uses OpenWeatherMap API (configure key in config/config.yaml).
 
-STATUS: STUB — returns mock data until API key is configured.
+Without an API key it returns a small static SAMPLE data set labelled
+source='mock'. Callers must not present sample data as real conditions;
+the consumer endpoint only shows external signals when source == 'live'.
 """
 
 import os
@@ -60,7 +62,7 @@ def _fetch_live(city: str, country_code: str, api_key: str) -> dict:
 def fetch_weather(region: str = None) -> dict:
     """
     Returns weather data per market hub city.
-    Falls back to mock data if no API key is set.
+    Without a key, returns static sample data labelled source='mock'.
     """
     api_key  = _get_api_key()
     markets  = HUB_CITIES if not region else {region: HUB_CITIES.get(region, [])}

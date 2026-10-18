@@ -4,7 +4,9 @@ epoch/backend/services/news_service.py
 Fetches supply-chain-relevant news headlines.
 Uses NewsAPI (configure key in config/config.yaml).
 
-STATUS: STUB — returns mock headlines until API key is configured.
+Without an API key it returns a small static SAMPLE data set labelled
+source='mock'. Callers must not present sample data as real conditions;
+the consumer endpoint only shows external signals when source == 'live'.
 """
 
 import os
@@ -51,7 +53,7 @@ def _fetch_live(api_key: str, market: str = None) -> list:
 def fetch_news(market: str = None) -> dict:
     """
     Returns supply chain news signals, optionally filtered by market.
-    Falls back to mock data if no API key is set.
+    Without a key, returns static sample data labelled source='mock'.
     """
     api_key = _get_api_key()
 
